@@ -70,6 +70,35 @@ func reconcileDir(dir string) int {
 	return added
 }
 
+// CleanUnusedArtwork removes leftover artwork folders that the app no
+// longer uses: per-playlist playlist_avatar/ dirs and _art/ sidecar dirs.
+// Covers now come from embedded audio pictures, so these are dead weight.
+// Returns the number of removed directories.
+func CleanUnusedArtwork() int {
+	removed := 0
+	for _, p := range state.Current.Profiles {
+		for _, pl := range p.Playlists {
+			dir := state.Current.PlaylistDir(p.FolderName, pl.FolderName)
+			for _, stale := range []string{"playlist_avatar", "_art"} {
+				full := filepath.Join(dir, stale)
+				if fi, err := os.Stat(full); err == nil && fi.IsDir() {
+					if err := os.RemoveAll(full); err == nil {
+						removed++
+					}
+				}
+			}
+		}
+		// Legacy per-profile avatar folder (option removed).
+		avatarDir := filepath.Join(state.Current.ProfilesDir(), p.FolderName, "avatar")
+		if fi, err := os.Stat(avatarDir); err == nil && fi.IsDir() {
+			if err := os.RemoveAll(avatarDir); err == nil {
+				removed++
+			}
+		}
+	}
+	return removed
+}
+
 // splitArtistTitle splits "Artist - Title.mp3" into its parts.
 func splitArtistTitle(filename string) (artist, title string) {
 	base := strings.TrimSuffix(filename, filepath.Ext(filename))

@@ -89,8 +89,10 @@ func main() {
 			state.Current.IsFirstLaunch = true
 		} else {
 			// Heal orphan downloads (files on disk missing from song_list.txt)
-			// so they show up in the UI.
+			// so they show up in the UI, and drop artwork folders the app no
+			// longer uses.
 			_ = bridge.ReconcileLibrary()
+			_ = bridge.CleanUnusedArtwork()
 			state.Current.CurrentProfile = &state.Current.Profiles[0]
 			if len(state.Current.CurrentProfile.Playlists) > 0 {
 				state.Current.CurrentPlaylist = &state.Current.CurrentProfile.Playlists[0]

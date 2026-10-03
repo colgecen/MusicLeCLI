@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"crypto/md5"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,37 +64,10 @@ func extractMetadata(filePath string) *Result {
 		}
 	}
 
-	// Album art
-	if pic := meta.Picture(); pic != nil {
-		artPath := saveAlbumArt(pic.Data, filePath)
-		if artPath != "" {
-			result.ArtPath = artPath
-		}
-	}
+	// NOTE: embedded pictures are intentionally NOT extracted to _art sidecar
+	// files anymore. Covers are read straight from the audio files when
+	// needed (now-playing card), so no stray image folders are created.
+	// Stale _art / playlist_avatar folders are removed by CleanUnusedArtwork.
 
 	return result
-}
-
-// saveAlbumArt saves album art bytes alongside the audio file and returns the path.
-func saveAlbumArt(data []byte, audioPath string) string {
-	h := fmt.Sprintf("%x", md5.Sum(data[:min64(len(data))]))[:8]
-	artDir := filepath.Join(filepath.Dir(audioPath), "_art")
-	if err := os.MkdirAll(artDir, 0755); err != nil {
-		return ""
-	}
-	artPath := filepath.Join(artDir, "art_"+h+".jpg")
-	if _, err := os.Stat(artPath); err == nil {
-		return artPath
-	}
-	if err := os.WriteFile(artPath, data, 0644); err != nil {
-		return ""
-	}
-	return artPath
-}
-
-func min64(n int) int {
-	if n > 64 {
-		return 64
-	}
-	return n
 }
