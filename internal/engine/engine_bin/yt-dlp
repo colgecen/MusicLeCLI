@@ -8,21 +8,8 @@
 REAL="$(dirname "$0")/yt-dlp.real"
 LOG="/tmp/musicle_ytwrap.log"
 
-# Decide client list: if a -f value requires [ext=webm], only use clients that
-# actually serve WebM/Opus, otherwise "Requested format is not available".
-has_webm=0
-for a in "$@"; do
-  case "$a" in *\[ext=webm\]*) has_webm=1;; esac
-done
-if [ "$has_webm" -eq 1 ]; then
-  CLIENTS=(android_vr web_synthetic)
-else
-  CLIENTS=(android_vr web_synthetic web android mweb tv ios)
-fi
-
-# Build CLEAN args (strip player_client=web and the [ext=webm] constraint only
-# if it would break a chosen client — kept for the legacy path so it still gets
-# a WebM stream; we just avoid rotating to clients that can't serve it).
+# Build CLEAN args (strip the stale player_client=web override; current
+# yt-dlp auto-selects a working client itself).
 CLEAN=()
 while [ $# -gt 0 ]; do
   if [ "$1" = "--extractor-args" ]; then
@@ -33,18 +20,17 @@ while [ $# -gt 0 ]; do
   CLEAN+=("$1"); shift
 done
 
-MAX_TRIES=8
+# Kept small on purpose: with an up-to-date yt-dlp the first attempt usually
+# succeeds in seconds. Retries use only real, audio-capable clients; long
+# retry spirals only stall playlists.
+CLIENTS=(android ios tv)
+MAX_TRIES=3
 rc=1
 for ((try=1; try<=MAX_TRIES; try++)); do
   args=("${CLEAN[@]}")
   if [ "$try" -gt 1 ]; then
-    newargs=(); inserted=0; client="youtube:player_client=${CLIENTS[$(( (try-2) % ${#CLIENTS[@]} ))]}"
-    for a in "${args[@]}"; do
-      if [ "$inserted" -eq 0 ] && [ "$a" = "--" ]; then newargs+=(--extractor-args "$client"); inserted=1; fi
-      newargs+=("$a")
-    done
-    [ "$inserted" -eq 0 ] && newargs+=(--extractor-args "$client")
-    args=("${newargs[@]}")
+    client="youtube:player_client=${CLIENTS[$(( (try-2) % ${#CLIENTS[@]} ))]}"
+    args+=(--extractor-args "$client")
   fi
 
   "$REAL" "${args[@]}" 2>>"$LOG"
@@ -52,6 +38,6 @@ for ((try=1; try<=MAX_TRIES; try++)); do
   if [ "$rc" -eq 0 ]; then
     exit 0
   fi
-  sleep $((try*2))
+  sleep 2
 done
 exit "$rc"
