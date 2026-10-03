@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# colgecen — MusicleCLI interaktif derleme aracı
+# musicle — MusicleCLI interaktif derleme aracı
 #
 # Kullanim:
-#   ./colgecen                    -> interaktif menü (OS sec -> format sec -> derle)
-#   ./colgecen --list             -> tüm derleme seceneklerini listele
-#   ./colgecen linux appimage     -> direkt derle (argümanli, menüsüz)
-#   ./colgecen windows exe-zip
-#   ./colgecen macos targz
-#   ./colgecen --install          -> ~/.local/bin'e sembolik bag kur,
-#                                    sonra her klasörden `colgecen` yazman yeterli
-#   ./colgecen --help             -> yardim
+#   ./musicle                    -> interaktif menü (OS sec -> format sec -> derle)
+#   ./musicle --list             -> tüm derleme seceneklerini listele
+#   ./musicle linux appimage     -> direkt derle (argümanli, menüsüz)
+#   ./musicle windows exe-zip
+#   ./musicle macos targz
+#   ./musicle --install          -> ~/.local/bin'e sembolik bag kur,
+#                                    sonra her klasörden `musicle` yazman yeterli
+#   ./musicle --help             -> yardim
 #
 # Gecerli hedefler:
 #   linux   : appimage | rpm | targz | binary
@@ -30,7 +30,7 @@ fi
 
 banner() {
   echo "=============================================="
-  echo "  MusicLeCLI — colgecen derleme araci  v$VERSION"
+  echo "  MusicLeCLI — musicle derleme araci  v$VERSION"
   echo "=============================================="
 }
 
@@ -38,11 +38,11 @@ usage() {
   banner
   echo
   echo "Kullanim:"
-  echo "  ./colgecen                     Interaktif menü"
-  echo "  ./colgecen <os> <format>       Direkt derle"
-  echo "  ./colgecen --list              Secenekleri listele"
-  echo "  ./colgecen --install           Komutu sisteme kur (her yerden 'colgecen')"
-  echo "  ./colgecen --help              Bu yardim"
+  echo "  ./musicle                     Interaktif menü"
+  echo "  ./musicle <os> <format>       Direkt derle"
+  echo "  ./musicle --list              Secenekleri listele"
+  echo "  ./musicle --install           Komutu sisteme kur (her yerden 'musicle')"
+  echo "  ./musicle --help              Bu yardim"
   echo
   echo "Hedefler:"
   echo "  linux   : appimage | rpm | targz | binary"
@@ -50,9 +50,9 @@ usage() {
   echo "  macos   : targz | binary"
   echo
   echo "Ornekler:"
-  echo "  ./colgecen linux appimage"
-  echo "  ./colgecen windows exe-zip"
-  echo "  VERSION=1.4.0 ./colgecen linux targz"
+  echo "  ./musicle linux appimage"
+  echo "  ./musicle windows exe-zip"
+  echo "  VERSION=1.4.0 ./musicle linux targz"
 }
 
 list_targets() {
@@ -64,10 +64,10 @@ list_targets() {
 do_install() {
   local bindir="$HOME/.local/bin"
   mkdir -p "$bindir"
-  ln -sf "$ROOT/colgecen" "$bindir/colgecen"
-  echo "Kuruldu: $bindir/colgecen -> $ROOT/colgecen"
+  ln -sf "$ROOT/musicle" "$bindir/musicle"
+  echo "Kuruldu: $bindir/musicle -> $ROOT/musicle"
   case ":$PATH:" in
-    *":$bindir:"*) echo "PATH zaten '$bindir' iceriyor. Artik her klasorden 'colgecen' yazabilirsin." ;;
+    *":$bindir:"*) echo "PATH zaten '$bindir' iceriyor. Artik her klasorden 'musicle' yazabilirsin." ;;
     *)
       echo "NOT: '$bindir' PATH'te yok. Su satiri ~/.bashrc'ye ekle:"
       echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
@@ -358,23 +358,23 @@ case "${1:-}" in
     do_install
     ;;
   --version|-v)
-    echo "colgecen $VERSION"
+    echo "musicle $VERSION"
     ;;
   linux|windows|macos|darwin)
     if [ $# -lt 2 ]; then
-      echo "Format eksik. Ornek: ./colgecen $1 <format>"
+      echo "Format eksik. Ornek: ./musicle $1 <format>"
       list_targets
       exit 1
     fi
     OS="$1"; FMT="$2"
-    # 3. argüman olarak version verilebilir: ./colgecen linux appimage 1.4.0
+    # 3. argüman olarak version verilebilir: ./musicle linux appimage 1.4.0
     if [ $# -ge 3 ]; then
       VERSION="$3"
     fi
     build_target "$OS" "$FMT"
     ;;
   *)
-    # VERSION=... ./colgecen 1.4.0  seklinde sürümle çağrı ya da hatalı kullanım
+    # VERSION=... ./musicle 1.4.0  seklinde sürümle çağrı ya da hatalı kullanım
     echo "Bilinmeyen komut: $1"
     echo
     usage
