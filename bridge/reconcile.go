@@ -28,10 +28,21 @@ func reconcileDir(dir string) int {
 	if err != nil {
 		return 0
 	}
-	existing, _ := state.ReadSongs(filepath.Join(dir, "song_list.txt"))
+	listPath := filepath.Join(dir, "song_list.txt")
+	existing, _ := state.ReadSongs(listPath)
 	have := make(map[string]bool, len(existing))
 	for _, s := range existing {
 		have[s.Filename] = true
+	}
+	// Backfill missing durations of already-listed songs (older repairs
+	// wrote "00:00").
+	for _, s := range existing {
+		if s.Duration == "" || s.Duration == "00:00" {
+			full := filepath.Join(dir, s.Filename)
+			if secs, err := MP3DurationSec(full); err == nil && secs > 0 {
+				_ = state.UpdateSong(listPath, s.Filename, "", "", fmtDuration(secs))
+			}
+		}
 	}
 	added := 0
 	for _, e := range entries {

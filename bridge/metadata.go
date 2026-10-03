@@ -58,6 +58,13 @@ func extractMetadata(filePath string) *Result {
 		result.Album = album
 	}
 
+	// Playing time for MP3 files (best effort; 0 when unreadable).
+	if ext == ".mp3" {
+		if secs, err := MP3DurationSec(filePath); err == nil && secs > 0 {
+			result.Duration = secs
+		}
+	}
+
 	// Album art
 	if pic := meta.Picture(); pic != nil {
 		artPath := saveAlbumArt(pic.Data, filePath)
