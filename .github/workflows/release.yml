@@ -93,7 +93,7 @@ jobs:
             -v "$PWD:/build" -w /build \
             -e CGO_ENABLED=1 \
           arm64v8/ubuntu:24.04 /bin/bash -c "
-            apt-get update -qq && apt-get install -y -qq ca-certificates libasound2-dev curl
+            apt-get update -qq && apt-get install -y -qq ca-certificates libasound2-dev curl gcc pkg-config
             curl -sL https://go.dev/dl/go1.26.1.linux-arm64.tar.gz -o /tmp/go.tgz
             tar -C /usr/local -xzf /tmp/go.tgz
             export PATH=/usr/local/go/bin:\$PATH
