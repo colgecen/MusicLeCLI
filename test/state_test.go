@@ -195,6 +195,55 @@ func TestRemoveSong_EmptyFile(t *testing.T) {
 	}
 }
 
+func TestRemoveSong_DeletesFile(t *testing.T) {
+	dir, clean := makeTempState(t)
+	defer clean()
+
+	listPath := filepath.Join(dir, "song_list.txt")
+	writeSongList(t, listPath, []string{
+		"s1.mp3|One|A1|2024-01-01|03:00",
+		"s2.mp3|Two|A2|2024-01-02|04:00",
+	})
+	songFile := filepath.Join(dir, "s2.mp3")
+	if err := os.WriteFile(songFile, []byte("audio"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := state.RemoveSong(listPath, "s2.mp3"); err != nil {
+		t.Fatalf("RemoveSong: %v", err)
+	}
+	if _, err := os.Stat(songFile); !os.IsNotExist(err) {
+		t.Error("ses dosyasi diskten silinmemis")
+	}
+	songs, _ := state.ReadSongs(listPath)
+	if len(songs) != 1 || songs[0].Filename != "s1.mp3" {
+		t.Errorf("liste yanlis: %+v", songs)
+	}
+}
+
+func TestRemoveSong_RefusesTraversal(t *testing.T) {
+	dir, clean := makeTempState(t)
+	defer clean()
+
+	// Disariya tasan girdi: liste satiri kabul edilir ama dosya silinmez.
+	listPath := filepath.Join(dir, "song_list.txt")
+	writeSongList(t, listPath, []string{
+		"../evil.mp3|Evil|X|2024-01-01|03:00",
+	})
+	outside := filepath.Join(filepath.Dir(dir), "evil.mp3")
+	if err := os.WriteFile(outside, []byte("onemli"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(outside)
+
+	if err := state.RemoveSong(listPath, "../evil.mp3"); err == nil {
+		t.Fatal("klasor disina cikista hata bekleniyordu")
+	}
+	if _, err := os.Stat(outside); err != nil {
+		t.Error("disaridaki dosya silinmemeliydi")
+	}
+}
+
 func TestUpdateSong(t *testing.T) {
 	dir, clean := makeTempState(t)
 	defer clean()

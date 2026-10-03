@@ -879,6 +879,13 @@ func (m *HomeModel) executeDelete() (tea.Model, tea.Cmd) {
 			Path:   song.Filename,
 		})
 		if err == nil && result.Status == "ok" {
+			// If the deleted song was playing, stop playback.
+			if cur := state.Current.Player.CurrentSong; cur != nil && cur.FilePath == song.FilePath {
+				go bridge.PlayerCall(bridge.Action{Action: "stop"})
+				state.Current.Player.CurrentSong = nil
+				state.Current.Player.IsPlaying = false
+				state.Current.Player.IsPaused = false
+			}
 			_ = state.Current.ScanProfiles()
 			m.refreshAllContent()
 			m.addLog("ok", "Deleted: "+song.Title)

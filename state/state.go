@@ -506,7 +506,10 @@ func WriteSongs(listPath string, songs []Song) error {
 	return os.WriteFile(listPath, []byte(buf.String()), 0644)
 }
 
-// RemoveSong removes a song entry from song_list.txt by filename
+// RemoveSong removes a song entry from song_list.txt by filename and deletes
+// the audio file from the playlist folder. The file must resolve inside the
+// list's directory — path traversal outside is refused. A file that is
+// already gone is not an error; the entry is still removed.
 func RemoveSong(listPath, filename string) error {
 	songs, err := ReadSongs(listPath)
 	if err != nil {
@@ -524,7 +527,18 @@ func RemoveSong(listPath, filename string) error {
 	if !found {
 		return fmt.Errorf("song not found: %s", filename)
 	}
-	return WriteSongs(listPath, filtered)
+	if err := WriteSongs(listPath, filtered); err != nil {
+		return err
+	}
+	dir := filepath.Dir(listPath)
+	target := filepath.Join(dir, filename)
+	if rel, err := filepath.Rel(dir, target); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("refused to delete outside playlist dir: %s", filename)
+	}
+	if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("delete file: %w", err)
+	}
+	return nil
 }
 
 // UpdateSong updates title, artist, and/or duration of a song entry. Empty fields are left unchanged.
