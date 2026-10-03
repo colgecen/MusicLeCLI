@@ -2,6 +2,7 @@ package download
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // EncodePCMToMP3 encodes PCM s16le samples to MP3 using pure Go encoder.
@@ -271,7 +273,10 @@ func WebMToMP3WithFFmpeg(webmData []byte, bitrate string, cb ProgressCallback) (
 		cb(10, "Converting with ffmpeg...")
 	}
 
-	cmd := exec.Command(ffmpeg, "-i", tmpWebmName, "-vn", "-acodec", "libmp3lame", "-b:a", br+"k", "-y", tmpMp3Name)
+	// Bounded: a wedged ffmpeg must fail the track, never the whole playlist.
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, ffmpeg, "-i", tmpWebmName, "-vn", "-acodec", "libmp3lame", "-b:a", br+"k", "-y", tmpMp3Name)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 

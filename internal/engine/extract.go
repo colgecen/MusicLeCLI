@@ -18,8 +18,11 @@ type Extracted struct {
 	FFMPEG string // absolute path to the embedded ffmpeg binary
 }
 
-// cacheVersion must match the value written by scripts/prepare-engine.sh.
-const cacheVersion = "engine-v2"
+// cacheVersion names the on-disk engine cache. Bump it EVERY time anything
+// under engine_bin/ changes (yt-dlp/ffmpeg/wrapper); otherwise installs keep
+// running the previously extracted (stale) tools forever, since the sentinel
+// check below cannot see content changes.
+const cacheVersion = "engine-v3"
 
 // sentinelName marks a successful extract; its presence short-circuits Extract.
 const sentinelName = ".extracted"
@@ -84,9 +87,11 @@ func doExtract() (*Extracted, error) {
 		return nil, fmt.Errorf("engine: cannot extract tools: %w", err)
 	}
 
-	// chmod +x on the tool binaries on unix.
+	// chmod +x on the tool binaries on unix. embed.FS reports every file
+	// as 0444, so copyFS alone leaves them non-executable — every binary
+	// the wrapper shells out to (including yt-dlp.real) must be listed here.
 	if runtime.GOOS != "windows" {
-		for _, name := range []string{"yt-dlp", "ffmpeg"} {
+		for _, name := range []string{"yt-dlp", "yt-dlp.real", "ffmpeg"} {
 			_ = os.Chmod(filepath.Join(binDst, name+exeSuffix()), 0o755)
 		}
 	}
