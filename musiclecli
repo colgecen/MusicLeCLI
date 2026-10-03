@@ -19,7 +19,7 @@
 #
 set -euo pipefail
 
-VERSION="${VERSION:-1.3.0}"
+VERSION="${VERSION:-1.4.0}"
 # ROOT = bu scriptin bulundugu repo koku. $0 symlink (örn. ~/.local/bin)
 # uzerinden cagrilabilir, o yuzden tum symlink'ler cozuler.
 resolve_root() {

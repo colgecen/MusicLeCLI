@@ -146,11 +146,13 @@ jobs:
           cp musicle-cli-windows-${{ matrix.arch }}.exe build/musicle-cli_Windows_${{ matrix.arch }}/
           cp README.md build/musicle-cli_Windows_${{ matrix.arch }}/ 2>/dev/null || true
           cd build && tar czf musicle-cli_Windows_${{ matrix.arch }}.tar.gz musicle-cli_Windows_${{ matrix.arch }}
-      - name: Upload artifact
+      - name: Upload artifacts (.exe + archive)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
-        run:           gh release upload --clobber "$TAG" build/musicle-cli_Windows_${{ matrix.arch }}.tar.gz
+        run: |
+          gh release upload --clobber "$TAG" musicle-cli-windows-${{ matrix.arch }}.exe
+          gh release upload --clobber "$TAG" build/musicle-cli_Windows_${{ matrix.arch }}.tar.gz
 
   appimage:
     needs: create-release
@@ -244,12 +246,54 @@ jobs:
           mkdir -p build/musicle-cli_macOS_x86_64
           cp musicle-cli-darwin-amd64 build/musicle-cli_macOS_x86_64/musicle-cli
           cp README.md build/musicle-cli_macOS_x86_64/ 2>/dev/null || true
-          cd build && tar czf musicle-cli_macOS_x86_64.tar.gz musicle-cli_macOS_x86_64
-      - name: Upload artifact
+          cd build && tar czf musicle-cli_macOS_x86_64.tar.gz musicle-cli_macOS_x86_64 && cd ..
+      - name: Package .app bundle
+        env:
+          RAW: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          APP="build/MusicLe.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp musicle-cli-darwin-amd64 "$APP/Contents/MacOS/musicle-cli"
+          cp assets/MusicLe.png "$APP/Contents/Resources/" 2>/dev/null || true
+          sips -s format icns assets/MusicLe.png --out "$APP/Contents/Resources/MusicLe.icns" 2>/dev/null || true
+          cat > "$APP/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>MusicLeLauncher</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.musicle.cli</string>
+            <key>CFBundleName</key>
+            <string>MusicLe</string>
+            <key>CFBundleVersion</key>
+            <string>${RAW#v}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${RAW#v}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleIconFile</key>
+            <string>MusicLe</string>
+          </dict>
+          </plist>
+          PLIST
+          cat > "$APP/Contents/MacOS/MusicLeLauncher" <<'LAUNCHER'
+          #!/bin/sh
+          # TUI apps need a real terminal: open one running the binary.
+          HERE="$(cd "$(dirname "$0")" && pwd)"
+          open -a Terminal "$HERE/musicle-cli"
+          LAUNCHER
+          chmod +x "$APP/Contents/MacOS/MusicLeLauncher" "$APP/Contents/MacOS/musicle-cli"
+          cd build && rm -f MusicLe-macOS-x86_64.zip && zip -qr MusicLe-macOS-x86_64.zip MusicLe.app && cd ..
+      - name: Upload artifacts (.app + archive)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
-        run:           gh release upload --clobber "$TAG" build/musicle-cli_macOS_x86_64.tar.gz
+        run: |
+          gh release upload --clobber "$TAG" build/MusicLe-macOS-x86_64.zip
+          gh release upload --clobber "$TAG" build/musicle-cli_macOS_x86_64.tar.gz
 
   macos-arm:
     needs: create-release
@@ -277,9 +321,51 @@ jobs:
           mkdir -p build/musicle-cli_macOS_arm64
           cp musicle-cli-darwin-arm64 build/musicle-cli_macOS_arm64/musicle-cli
           cp README.md build/musicle-cli_macOS_arm64/ 2>/dev/null || true
-          cd build && tar czf musicle-cli_macOS_arm64.tar.gz musicle-cli_macOS_arm64
-      - name: Upload artifact
+          cd build && tar czf musicle-cli_macOS_arm64.tar.gz musicle-cli_macOS_arm64 && cd ..
+      - name: Package .app bundle
+        env:
+          RAW: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          APP="build/MusicLe.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp musicle-cli-darwin-arm64 "$APP/Contents/MacOS/musicle-cli"
+          cp assets/MusicLe.png "$APP/Contents/Resources/" 2>/dev/null || true
+          sips -s format icns assets/MusicLe.png --out "$APP/Contents/Resources/MusicLe.icns" 2>/dev/null || true
+          cat > "$APP/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>MusicLeLauncher</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.musicle.cli</string>
+            <key>CFBundleName</key>
+            <string>MusicLe</string>
+            <key>CFBundleVersion</key>
+            <string>${RAW#v}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${RAW#v}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleIconFile</key>
+            <string>MusicLe</string>
+          </dict>
+          </plist>
+          PLIST
+          cat > "$APP/Contents/MacOS/MusicLeLauncher" <<'LAUNCHER'
+          #!/bin/sh
+          # TUI apps need a real terminal: open one running the binary.
+          HERE="$(cd "$(dirname "$0")" && pwd)"
+          open -a Terminal "$HERE/musicle-cli"
+          LAUNCHER
+          chmod +x "$APP/Contents/MacOS/MusicLeLauncher" "$APP/Contents/MacOS/musicle-cli"
+          cd build && rm -f MusicLe-macOS-arm64.zip && zip -qr MusicLe-macOS-arm64.zip MusicLe.app && cd ..
+      - name: Upload artifacts (.app + archive)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
-        run:           gh release upload --clobber "$TAG" build/musicle-cli_macOS_arm64.tar.gz
+        run: |
+          gh release upload --clobber "$TAG" build/MusicLe-macOS-arm64.zip
+          gh release upload --clobber "$TAG" build/musicle-cli_macOS_arm64.tar.gz

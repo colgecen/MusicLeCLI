@@ -5,7 +5,7 @@
 # engine and download packages still build/vet/test via `make check`.
 
 GO ?= go
-VERSION ?= 1.3.0
+VERSION ?= 1.4.0
 
 LDFLAGS := -ldflags="-s -w -X main.version=$(VERSION)"
 
