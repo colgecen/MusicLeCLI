@@ -24,25 +24,6 @@ func syncsafeEncode(n uint32) []byte {
 	}
 }
 
-// id3Unsynchronise replaces bytes that could form false MP3 sync (FFh) with
-// FFh 00h sequences. Returns (unsynchronised data, wasModified, error).
-func id3Unsynchronise(data []byte) ([]byte, bool) {
-	var out bytes.Buffer
-	modified := false
-	for i := 0; i < len(data); i++ {
-		out.WriteByte(data[i])
-		if data[i] == 0xFF && i+1 < len(data) && (data[i+1]&0xE0) != 0 {
-			// 0xFF followed by a byte with high 3 bits set → insert 0x00
-			// Actually, ID3 unsynchronisation: 0xFF 0x00 → 0xFF 0x00 0x00
-			if data[i+1] == 0x00 {
-				out.WriteByte(0x00)
-				modified = true
-			}
-		}
-	}
-	return out.Bytes(), modified
-}
-
 func writeTextFrame(id, text string) []byte {
 	if text == "" {
 		return nil
@@ -127,8 +108,12 @@ func WriteID3Tag(mp3Data []byte, info *TrackInfo) ([]byte, error) {
 		return mp3Data, nil
 	}
 
-	// Unsynchronise frame data
-	rawTag, _ := id3Unsynchronise(tag.Bytes())
+	// NOTE: no unsynchronisation on purpose. The old code set the unsync
+	// flag while applying a non-standard byte transform, which corrupted
+	// embedded pictures (JPEG decoders fail on the altered bytes and tag
+	// readers disagree on reversing it). Tag size is explicit in the
+	// header, so players skip the tag region without scanning for syncs.
+	rawTag := tag.Bytes()
 	// Add padding
 	pad := id3PaddingSize
 	totalSize := len(rawTag) + pad
@@ -137,8 +122,7 @@ func WriteID3Tag(mp3Data []byte, info *TrackInfo) ([]byte, error) {
 	copy(header[0:3], "ID3")
 	header[3] = 3
 	header[4] = 0
-	// Set unsynchronisation flag (bit 7)
-	header[5] = 0x80
+	header[5] = 0
 	copy(header[6:10], syncsafeEncode(uint32(totalSize)))
 
 	var out bytes.Buffer
