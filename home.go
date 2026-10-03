@@ -1219,6 +1219,9 @@ func (m *HomeModel) refreshAllContent() {
 	savedProfile := state.Current.CurrentProfile
 	savedPlaylist := state.Current.CurrentPlaylist
 	_ = state.Current.ScanProfiles()
+	// Pick up files downloaded without registration (or copied manually).
+	_ = bridge.ReconcileLibrary()
+	_ = state.Current.ScanProfiles()
 	if len(state.Current.Profiles) > 0 {
 		if savedProfile != nil {
 			found := false

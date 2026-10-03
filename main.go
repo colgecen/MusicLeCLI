@@ -88,6 +88,9 @@ func main() {
 		if scanErr := state.Current.ScanProfiles(); scanErr != nil || len(state.Current.Profiles) == 0 {
 			state.Current.IsFirstLaunch = true
 		} else {
+			// Heal orphan downloads (files on disk missing from song_list.txt)
+			// so they show up in the UI.
+			_ = bridge.ReconcileLibrary()
 			state.Current.CurrentProfile = &state.Current.Profiles[0]
 			if len(state.Current.CurrentProfile.Playlists) > 0 {
 				state.Current.CurrentPlaylist = &state.Current.CurrentProfile.Playlists[0]
