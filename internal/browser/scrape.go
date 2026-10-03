@@ -73,7 +73,7 @@ func Connect(platform Platform) ([]Playlist, error) {
 		}
 	}
 	if match == nil {
-		return nil, fmt.Errorf("%s sekmesi tarayıcıda açık değil", platform)
+		return nil, fmt.Errorf("%s tab is not open in the browser", platform)
 	}
 
 	session, err := client.Attach(match.TargetID)
@@ -98,7 +98,7 @@ func ConnectFirst(platform Platform) (*Playlist, error) {
 		return nil, err
 	}
 	if len(pls) == 0 {
-		return nil, fmt.Errorf("%s için playlist bulunamadı", platform)
+		return nil, fmt.Errorf("no playlist found for %s", platform)
 	}
 	return &pls[0], nil
 }
@@ -211,7 +211,7 @@ func scrapeSpotify(client *CDPClient, session, pageURL string) ([]Playlist, erro
 		id = rest
 	}
 	if id == "" {
-		return nil, fmt.Errorf("spotify playlist id bulunamadı: %s", pageURL)
+		return nil, fmt.Errorf("spotify playlist id not found: %s", pageURL)
 	}
 
 	expr := spotifyScrapeExpr(id)

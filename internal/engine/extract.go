@@ -73,15 +73,15 @@ func doExtract() (*Extracted, error) {
 
 	// Slow path: wipe and re-extract.
 	if err := os.RemoveAll(root); err != nil {
-		return nil, fmt.Errorf("engine: eski önbellek temizlenemedi: %w", err)
+		return nil, fmt.Errorf("engine: cannot clear old cache: %w", err)
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
-		return nil, fmt.Errorf("engine: cache dizini oluşturulamadı: %w", err)
+		return nil, fmt.Errorf("engine: cannot create cache dir: %w", err)
 	}
 
 	binDst := filepath.Join(root, "engine_bin")
 	if err := copyFS(binFS, "engine_bin", binDst); err != nil {
-		return nil, fmt.Errorf("engine: araçlar çıkarılamadı: %w", err)
+		return nil, fmt.Errorf("engine: cannot extract tools: %w", err)
 	}
 
 	// chmod +x on the tool binaries on unix.
@@ -93,7 +93,7 @@ func doExtract() (*Extracted, error) {
 
 	// Stamp the cache as valid.
 	if err := os.WriteFile(filepath.Join(root, sentinelName), []byte(cacheVersion+"\n"), 0o644); err != nil {
-		return nil, fmt.Errorf("engine: sentinel yazılamadı: %w", err)
+		return nil, fmt.Errorf("engine: cannot write sentinel: %w", err)
 	}
 
 	return buildExtracted(root)
@@ -105,7 +105,7 @@ func cacheDir() (string, error) {
 	}
 	base, err := os.UserCacheDir()
 	if err != nil {
-		return "", fmt.Errorf("engine: kullanıcı cache dizini bulunamadı: %w", err)
+		return "", fmt.Errorf("engine: user cache dir not found: %w", err)
 	}
 	return filepath.Join(base, "musicle"), nil
 }
@@ -125,7 +125,7 @@ func buildExtracted(root string) (*Extracted, error) {
 
 	for _, p := range []string{ytdlp, ffmpeg} {
 		if _, err := os.Stat(p); err != nil {
-			return nil, fmt.Errorf("engine: beklenen binary eksik: %s (%w)", p, err)
+			return nil, fmt.Errorf("engine: expected binary missing: %s (%w)", p, err)
 		}
 	}
 

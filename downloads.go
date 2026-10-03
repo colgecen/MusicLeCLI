@@ -60,8 +60,9 @@ type DownloadsModel struct {
 	downloadHistory  []downloadHistoryItem
 	downloadPercent  float64
 	downloadStatus   string
-	progressLine     string // "İndiriliyor... X%" shown during download
+	progressLine     string // "Downloading... X%" shown during download
 	resultLine       string // completion message shown under progress
+	resultIsErr      bool   // styles resultLine red; language-independent
 	lastLoggedPct    int    // dedup progress logs (legacy)
 
 	playlistOptions []string
@@ -74,7 +75,7 @@ func NewDownloadsModel() *DownloadsModel {
 
 	mi := textinput.New()
 	mi.Placeholder = "https://open.spotify.com/... / https://youtube.com/..."
-	mi.Prompt = "  " + Tr("dl.btn_music")[2:] + " URL:  "
+	mi.Prompt = Tr("dl.prompt_music")
 	mi.PromptStyle = ui.AccentStyle
 	mi.TextStyle = ui.WhiteStyle
 	mi.PlaceholderStyle = ui.DimStyle
@@ -84,7 +85,7 @@ func NewDownloadsModel() *DownloadsModel {
 
 	pi := textinput.New()
 	pi.Placeholder = "https://open.spotify.com/playlist/... / https://youtube.com/playlist?..."
-	pi.Prompt = "  Playlist URL:  "
+	pi.Prompt = Tr("dl.prompt_playlist")
 	pi.PromptStyle = ui.AccentStyle
 	pi.TextStyle = ui.WhiteStyle
 	pi.PlaceholderStyle = ui.DimStyle
@@ -117,7 +118,7 @@ func (m *DownloadsModel) refreshPlaylistOptions() {
 		}
 	}
 	if len(m.playlistOptions) == 0 {
-		m.playlistOptions = []string{"(no playlists)"}
+		m.playlistOptions = []string{Tr("dl.no_playlists")}
 	}
 	if m.playlistIdx >= len(m.playlistOptions) {
 		m.playlistIdx = 0
@@ -160,7 +161,7 @@ func (m *DownloadsModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.sectionIdx == dlSectionMusic && m.focusIdx == 1 && len(m.playlistOptions) > 1 && m.playlistOptions[0] != "(no playlists)" {
+		if m.sectionIdx == dlSectionMusic && m.focusIdx == 1 && len(m.playlistOptions) > 1 && m.playlistOptions[0] != Tr("dl.no_playlists") {
 			m.playlistIdx = (m.playlistIdx - 1 + len(m.playlistOptions)) % len(m.playlistOptions)
 			return m, nil
 		}
@@ -172,7 +173,7 @@ func (m *DownloadsModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.sectionIdx == dlSectionMusic && m.focusIdx == 1 && len(m.playlistOptions) > 1 && m.playlistOptions[0] != "(no playlists)" {
+		if m.sectionIdx == dlSectionMusic && m.focusIdx == 1 && len(m.playlistOptions) > 1 && m.playlistOptions[0] != Tr("dl.no_playlists") {
 			m.playlistIdx = (m.playlistIdx + 1) % len(m.playlistOptions)
 			return m, nil
 		}
@@ -447,7 +448,7 @@ func (m *DownloadsModel) currentInput() *textinput.Model {
 	return nil
 }
 
-// TrackProgress updates the on-screen status line (e.g. "İndiriliyor... 45%").
+// TrackProgress updates the on-screen status line (e.g. "Downloading... 45%").
 // It intentionally does NOT write to the console log, so the console stays
 // quiet during normal downloads — only the status block shows progress.
 func (m *DownloadsModel) TrackProgress(active bool, pct float64, status string) {
@@ -457,13 +458,13 @@ func (m *DownloadsModel) TrackProgress(active bool, pct float64, status string) 
 		// the track title / song count for a proper completion message.
 		return
 	}
-	m.progressLine = fmt.Sprintf("İndiriliyor... %d%%", int(pct))
+	m.progressLine = fmt.Sprintf("Downloading... %d%%", int(pct))
 }
 
 // startPlaylistDownload starts downloading a playlist URL.
 func (m *DownloadsModel) startPlaylistDownload() tea.Cmd {
 	if m.isDownloading {
-		m.addLog("error", Tr("dl.error")+": already downloading")
+		m.addLog("error", "Error: already downloading")
 		return nil
 	}
 	url := strings.TrimSpace(m.plURLInput.Value())
@@ -488,6 +489,7 @@ func (m *DownloadsModel) startPlaylistDownload() tea.Cmd {
 	m.downloadStatus = "0%"
 	m.progressLine = ""
 	m.resultLine = ""
+	m.resultIsErr = false
 	m.downloadedTracks = 0
 	m.failedTracks = 0
 
@@ -528,16 +530,16 @@ func detectDownloadProvider(rawURL string) string {
 
 func (m *DownloadsModel) startDownload() tea.Cmd {
 	if m.isDownloading {
-		m.addLog("error", Tr("dl.error")+": already downloading")
+		m.addLog("error", "Error: already downloading")
 		return nil
 	}
 	url := strings.TrimSpace(m.musicInput.Value())
 	if url == "" {
-		m.addLog("error", Tr("dl.enter_url"))
+		m.addLog("error", "Enter a URL first")
 		return nil
 	}
 	if !strings.HasPrefix(url, "http") {
-		m.addLog("error", Tr("dl.invalid_url"))
+		m.addLog("error", "Invalid URL")
 		return nil
 	}
 
@@ -567,6 +569,7 @@ func (m *DownloadsModel) startDownload() tea.Cmd {
 	m.downloadStatus = "0%"
 	m.progressLine = ""
 	m.resultLine = ""
+	m.resultIsErr = false
 	m.downloadedTracks = 0
 	m.failedTracks = 0
 	m.lastLoggedPct = -1
@@ -578,13 +581,14 @@ func (m *DownloadsModel) startDownload() tea.Cmd {
 func (m *DownloadsModel) handleDownloadResult(msg DownloadResultMsg) {
 	m.isDownloading = false
 	m.downloadPercent = 100
-	m.progressLine = "İndiriliyor... 100%"
+	m.progressLine = "Downloading... 100%"
 
 	if msg.Error != nil {
 		m.failedTracks++
 		m.downloadHistory = append(m.downloadHistory, downloadHistoryItem{title: "error", status: "error", time: time.Now()})
 		m.progressLine = ""
-		m.resultLine = fmt.Sprintf("Hata: %v", msg.Error)
+		m.resultLine = fmt.Sprintf("Error: %v", msg.Error)
+		m.resultIsErr = true
 		m.addLog("error", m.resultLine)
 		return
 	}
@@ -592,7 +596,8 @@ func (m *DownloadsModel) handleDownloadResult(msg DownloadResultMsg) {
 		m.failedTracks++
 		m.downloadHistory = append(m.downloadHistory, downloadHistoryItem{title: "error", status: "error", time: time.Now()})
 		m.progressLine = ""
-		m.resultLine = "Hata: sonuç yok (bridge'den yanıt yok)"
+		m.resultLine = "Error: no result (no response from bridge)"
+		m.resultIsErr = true
 		m.addLog("error", m.resultLine)
 		return
 	}
@@ -601,7 +606,8 @@ func (m *DownloadsModel) handleDownloadResult(msg DownloadResultMsg) {
 		m.failedTracks++
 		m.downloadHistory = append(m.downloadHistory, downloadHistoryItem{title: msg.Result.Error, status: "error", time: time.Now()})
 		m.progressLine = ""
-		m.resultLine = "Hata: " + msg.Result.Error
+		m.resultLine = "Error: " + msg.Result.Error
+		m.resultIsErr = true
 		m.addLog("error", m.resultLine)
 		return
 	}
@@ -610,14 +616,15 @@ func (m *DownloadsModel) handleDownloadResult(msg DownloadResultMsg) {
 	m.downloadHistory = append(m.downloadHistory, downloadHistoryItem{title: msg.Result.Title, status: "ok", time: time.Now()})
 
 	// Completion message shown under the progress line.
+	m.resultIsErr = false
 	if msg.Result.Songs != nil && len(msg.Result.Songs) > 0 {
-		m.resultLine = fmt.Sprintf("%d şarkı indirildi", len(msg.Result.Songs))
+		m.resultLine = fmt.Sprintf("Downloaded %d song(s)", len(msg.Result.Songs))
 	} else {
 		title := msg.Result.Title
 		if title == "" {
 			title = msg.Result.Filename
 		}
-		m.resultLine = fmt.Sprintf("%s adlı şarkı indirildi", title)
+		m.resultLine = fmt.Sprintf("Downloaded: %s", title)
 	}
 	// No console log on success — the status block above carries the result.
 }
@@ -710,7 +717,7 @@ func extractTitleFromResult(msg DownloadResultMsg) string {
 func (m *DownloadsModel) openLocalPlaylistDialog() tea.Cmd {
 	return func() tea.Msg {
 		selectedPath, err := zenity.SelectFile(
-			zenity.Title("Select Music Directory"),
+			zenity.Title(Tr("dl.dlg_dir")),
 			zenity.Directory(),
 		)
 		if err != nil || selectedPath == "" {
@@ -730,9 +737,9 @@ func (m *DownloadsModel) openLocalPlaylistDialog() tea.Cmd {
 func (m *DownloadsModel) openLocalMusicDialog() tea.Cmd {
 	return func() tea.Msg {
 		selectedPath, err := zenity.SelectFile(
-			zenity.Title("Select Audio Files"),
+			zenity.Title(Tr("dl.dlg_audio")),
 			zenity.FileFilter{
-				Name:     "Audio Files",
+				Name:     Tr("dl.filter_audio"),
 				Patterns: []string{"*.mp3"},
 			},
 		)
@@ -790,7 +797,7 @@ func (m *DownloadsModel) consoleWidth() int {
 
 func (m *DownloadsModel) renderConsole(bodyH int) string {
 	w := m.consoleWidth()
-	title := ui.SectionTitleStyle.Render(langT("CONSOLE", "KONSOL"))
+	title := ui.SectionTitleStyle.Render(Tr("dl.console"))
 
 	// Status block (progress + result) shown at the top of the console,
 	// above any error logs. Keeps the console clean during downloads.
@@ -799,7 +806,7 @@ func (m *DownloadsModel) renderConsole(bodyH int) string {
 		statusParts = append(statusParts, ui.WhiteStyle.Render(m.progressLine))
 	}
 	if m.resultLine != "" {
-		if strings.HasPrefix(m.resultLine, "Hata:") {
+		if m.resultIsErr {
 			statusParts = append(statusParts, logErrStyle.Render(m.resultLine))
 		} else {
 			statusParts = append(statusParts, logOKStyle.Render(m.resultLine))
@@ -854,7 +861,7 @@ func (m *DownloadsModel) renderConsole(bodyH int) string {
 		if statusBlock != "" {
 			inner = title + "\n" + statusBlock
 		} else {
-			inner = title + "\n" + ui.FaintStyle.Render("  No logs")
+			inner = title + "\n" + ui.FaintStyle.Render("  "+Tr("dl.no_logs"))
 		}
 	} else {
 		var contentParts []string
@@ -1051,24 +1058,30 @@ func (m *DownloadsModel) View() string {
 		if val == "" {
 			val = m.musicInput.Placeholder
 		}
-		musicInputV = "  Müzik URL:  " + ui.WhiteStyle.Render(val)
+		musicInputV = Tr("dl.prompt_music") + ui.WhiteStyle.Render(val)
 	}
 
-	playlistBtn := ui.ButtonStyle.Render("  + Playlist  ")
-	musicBtn := ui.ButtonStyle.Render("  + Music  ")
+	plBtnW := maxTrWidth("dl.btn_playlist")
+	musBtnW := maxTrWidth("dl.btn_music")
+	plBtnTxt := ui.FitPad(Tr("dl.btn_playlist"), plBtnW)
+	musBtnTxt := ui.FitPad(Tr("dl.btn_music"), musBtnW)
+	playlistBtn := ui.ButtonStyle.Render(plBtnTxt)
+	musicBtn := ui.ButtonStyle.Render(musBtnTxt)
 	if musicFocus && m.focusIdx == 2 {
-		playlistBtn = ui.FocusedOutlineStyle.Render("  + Playlist  ")
+		playlistBtn = ui.FocusedOutlineStyle.Render(plBtnTxt)
 	}
 	if musicFocus && m.focusIdx == 3 {
-		musicBtn = ui.FocusedOutlineStyle.Render("  + Music  ")
+		musicBtn = ui.FocusedOutlineStyle.Render(musBtnTxt)
 	}
 	localBtn := lipgloss.JoinHorizontal(lipgloss.Left, playlistBtn, "  ", musicBtn)
 
 	playlistV := m.viewPlaylistDropdown()
 
-	dlBtn := ui.AccentButtonStyle.Render("  v Download  ")
+	dlBtnW := maxTrWidth("dl.btn_download")
+	dlBtnTxt := ui.FitPad(Tr("dl.btn_download"), dlBtnW)
+	dlBtn := ui.AccentButtonStyle.Render(dlBtnTxt)
 	if musicFocus && m.focusIdx == 4 {
-		dlBtn = ui.FocusedButtonStyle.Render("  v Download  ")
+		dlBtn = ui.FocusedButtonStyle.Render(dlBtnTxt)
 	}
 
 	musicContent := lipgloss.JoinVertical(lipgloss.Left,
@@ -1095,12 +1108,13 @@ func (m *DownloadsModel) View() string {
 		if val == "" {
 			val = m.plURLInput.Placeholder
 		}
-		plURLV = "  Playlist URL:  " + ui.WhiteStyle.Render(val)
+		plURLV = Tr("dl.prompt_playlist") + ui.WhiteStyle.Render(val)
 	}
 
-	plDlBtn := ui.AccentButtonStyle.Render("  v Download Playlist  ")
+	plDlBtnTxt := ui.FitPad(Tr("dl.btn_download_pl"), maxTrWidth("dl.btn_download_pl"))
+	plDlBtn := ui.AccentButtonStyle.Render(plDlBtnTxt)
 	if plFocus && m.focusIdx == 1 {
-		plDlBtn = ui.FocusedButtonStyle.Render("  v Download Playlist  ")
+		plDlBtn = ui.FocusedButtonStyle.Render(plDlBtnTxt)
 	}
 
 	plContent := lipgloss.JoinVertical(lipgloss.Left,
@@ -1114,7 +1128,7 @@ func (m *DownloadsModel) View() string {
 	if plFocus {
 		plBorder = ui.AccentBorderStyle
 	}
-	plTitle := ui.SectionTitleStyle.Render(" " + langT("Playlist Download", "Playlist İndirme") + " ")
+	plTitle := ui.SectionTitleStyle.Render(" " + Tr("dl.playlist_download") + " ")
 	plBox := plBorder.Width(boxW).Render(plTitle + "\n" + plContent)
 
 	// Join sections vertically with same height
@@ -1134,15 +1148,15 @@ func (m *DownloadsModel) View() string {
 
 func (m *DownloadsModel) viewPlaylistDropdown() string {
 	if len(m.playlistOptions) == 0 {
-		return "  " + ui.FaintStyle.Render("(no playlists)")
+		return "  " + ui.FaintStyle.Render(Tr("dl.no_playlists"))
 	}
 	if m.playlistIdx >= len(m.playlistOptions) {
 		m.playlistIdx = 0
 	}
-	if m.playlistOptions[0] == "(no playlists)" {
-		return "  " + ui.FaintStyle.Render("(no playlists)")
+	if m.playlistOptions[0] == Tr("dl.no_playlists") {
+		return "  " + ui.FaintStyle.Render(Tr("dl.no_playlists"))
 	}
-	label := ui.AccentStyle.Render("  Playlist:  ")
+	label := ui.AccentStyle.Render(Tr("dl.playlist_label"))
 	current := m.playlistOptions[m.playlistIdx]
 	if m.sectionIdx == dlSectionMusic && m.focusIdx == 1 {
 		return label + ui.AccentStyle.Render(current)

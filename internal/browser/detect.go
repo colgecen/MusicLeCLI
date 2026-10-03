@@ -63,7 +63,7 @@ func FindDevToolsEndpoint() (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("browser bağlantısı bulunamadı: uzaktan hata ayıklama kapalı; tarayıcıyı --remote-debugging-port=9222 ile başlatın")
+	return "", fmt.Errorf("no browser connection: remote debugging is off; start the browser with --remote-debugging-port=9222")
 }
 
 // DiscoverEndpoint returns the DevTools HTTP base URL for this browser, or an

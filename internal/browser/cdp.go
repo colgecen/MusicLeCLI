@@ -57,7 +57,7 @@ func Dial(endpoint string) (*CDPClient, error) {
 	}
 	conn, _, err := websocket.DefaultDialer.Dial(v.WebSocketDebuggerURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("devtools websocket bağlantısı: %w", err)
+		return nil, fmt.Errorf("devtools websocket connection: %w", err)
 	}
 	c := &CDPClient{
 		conn:    conn,
@@ -88,7 +88,7 @@ func (c *CDPClient) readLoop() {
 			}
 			c.mu.Unlock()
 			for _, ch := range pending {
-				ch <- &cdpMessage{Error: &cdpError{Code: -1, Message: "websocket kapandı"}}
+				ch <- &cdpMessage{Error: &cdpError{Code: -1, Message: "websocket closed"}}
 			}
 			return
 		}
@@ -140,9 +140,9 @@ func (c *CDPClient) send(method, sessionID string, params any) (json.RawMessage,
 		}
 		return msg.Result, nil
 	case <-c.closed:
-		return nil, fmt.Errorf("cdp istemcisi kapalı")
+		return nil, fmt.Errorf("cdp client closed")
 	case <-time.After(20 * time.Second):
-		return nil, fmt.Errorf("cdp zaman aşımı: %s", method)
+		return nil, fmt.Errorf("cdp timeout: %s", method)
 	}
 }
 
@@ -214,7 +214,7 @@ func (c *CDPClient) Evaluate(sessionID, expr string) (json.RawMessage, error) {
 		return nil, err
 	}
 	if out.ExceptionDetails != nil {
-		return nil, fmt.Errorf("sayfa JS hatası: %s", out.ExceptionDetails.Text)
+		return nil, fmt.Errorf("page JS error: %s", out.ExceptionDetails.Text)
 	}
 	var robj struct {
 		Value json.RawMessage `json:"value"`

@@ -36,7 +36,7 @@ func downloadYouTube(url, outputDir string) *Result {
 		return &Result{Status: "error", Error: "invalid URL"}
 	}
 
-	CurrentDownload.Set(true, 0, "Bridge: YouTube indirme başlatılıyor...")
+	CurrentDownload.Set(true, 0, "Bridge: starting YouTube download...")
 
 	if res, ok := runEngine(url, outputDir); ok {
 		return res
@@ -75,7 +75,7 @@ func runEngine(url, outputDir string) (*Result, bool) {
 		return nil, false
 	}
 	if _, err := engine.Extract(); err != nil {
-		CurrentDownload.Set(true, 0, "Bridge: motor yok, eski yöntem kullanılıyor")
+		CurrentDownload.Set(true, 0, "Bridge: no engine, using legacy method")
 		return nil, false
 	}
 
@@ -83,34 +83,34 @@ func runEngine(url, outputDir string) (*Result, bool) {
 	prior := listAudioFiles(outputDir)
 
 	if isSpotifyURL(url) {
-		CurrentDownload.Set(true, 0, "Bridge: Spotify motoru başlatılıyor (yt-dlp)...")
+		CurrentDownload.Set(true, 0, "Bridge: starting Spotify engine (yt-dlp)...")
 		err := engine.DownloadSpotify(engine.SpotifyOptions{
 			OutputDir: outputDir,
 			URLs:      []string{url},
 			Progress:  engineProgress,
 		})
 		if err != nil {
-			CurrentDownload.Set(false, 0, fmt.Sprintf("Motor hatası, eski yöntem deneniyor: %v", err))
+			CurrentDownload.Set(false, 0, fmt.Sprintf("Engine error, trying legacy method: %v", err))
 			return nil, false
 		}
 	} else {
-		CurrentDownload.Set(true, 0, "Bridge: yt-dlp motoru başlatılıyor...")
+		CurrentDownload.Set(true, 0, "Bridge: starting yt-dlp engine...")
 		err := engine.DownloadYouTube(engine.YouTubeOptions{
 			OutputDir: outputDir,
 			URLs:      []string{url},
 			Progress:  engineProgress,
 		})
 		if err != nil {
-			CurrentDownload.Set(false, 0, fmt.Sprintf("Motor hatası, eski yöntem deneniyor: %v", err))
+			CurrentDownload.Set(false, 0, fmt.Sprintf("Engine error, trying legacy method: %v", err))
 			return nil, false
 		}
 	}
 
-	// Fallback zinciri: motor başarıyla döndü ama bir dosya üretmediyse
-	// (ör. bilinmeyen URL, boş çalma listesi) legacy yönteme düş.
+	// Fallback chain: engine returned fine but produced no file (e.g.
+	// unknown URL, empty playlist) → drop to the legacy method.
 	files := newAudioFiles(outputDir, before, prior)
 	if len(files) == 0 {
-		CurrentDownload.Set(false, 0, "Motor dosya üretmedi, eski yöntem deneniyor")
+		CurrentDownload.Set(false, 0, "Engine produced no file, trying legacy method")
 		return nil, false
 	}
 
@@ -118,7 +118,7 @@ func runEngine(url, outputDir string) (*Result, bool) {
 	if len(files) == 1 {
 		res := resultFromFile(files[0])
 		registerSong(outputDir, files[0], res)
-		CurrentDownload.Set(false, 100, fmt.Sprintf("Motor ile tamamlandı: %s", filepath.Base(files[0])))
+		CurrentDownload.Set(false, 100, fmt.Sprintf("Completed via engine: %s", filepath.Base(files[0])))
 		return res, true
 	}
 
@@ -128,10 +128,10 @@ func runEngine(url, outputDir string) (*Result, bool) {
 		registerSong(outputDir, f, res)
 		songs = append(songs, *res)
 	}
-	CurrentDownload.Set(false, 100, fmt.Sprintf("Motor ile %d şarkı indirildi", len(songs)))
+	CurrentDownload.Set(false, 100, fmt.Sprintf("Downloaded %d song(s) via engine", len(songs)))
 	return &Result{
 		Status:  "ok",
-		Message: fmt.Sprintf("%d şarkı indirildi", len(songs)),
+		Message: fmt.Sprintf("Downloaded %d song(s)", len(songs)),
 		Songs:   songs,
 	}, true
 }

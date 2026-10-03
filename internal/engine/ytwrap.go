@@ -24,10 +24,10 @@ func downloadWithYTDLP(ext *Extracted, urls []string, outDir string, progress Pr
 		progress = func(int, string) {}
 	}
 	if len(urls) == 0 {
-		return fmt.Errorf("en az bir URL gerekli")
+		return fmt.Errorf("at least one URL is required")
 	}
 	for i, u := range urls {
-		progress(0, fmt.Sprintf("İndiriliyor %d/%d...", i+1, len(urls)))
+		progress(0, fmt.Sprintf("Downloading %d/%d...", i+1, len(urls)))
 		if err := downloadOne(ext, u, outDir, progress); err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ type ytdlpMeta struct {
 func downloadOne(ext *Extracted, url, outDir string, progress Progress) error {
 	tmp, err := os.MkdirTemp("", "musicle_yt_")
 	if err != nil {
-		return fmt.Errorf("geçici dizin: %w", err)
+		return fmt.Errorf("temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmp)
 
@@ -115,7 +115,7 @@ func downloadOne(ext *Extracted, url, outDir string, progress Progress) error {
 
 	// 3) ffmpeg: audio -> mp3 320k, attach cover as APIC.
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return fmt.Errorf("çıktı dizini: %w", err)
+		return fmt.Errorf("output dir: %w", err)
 	}
 	outPath := filepath.Join(outDir, name+".mp3")
 	args := []string{"-y", "-i", audioFile}
@@ -133,9 +133,9 @@ func downloadOne(ext *Extracted, url, outDir string, progress Progress) error {
 	args = append(args, outPath)
 
 	if err := runFFMPEG(ext.FFMPEG, args, progress); err != nil {
-		return fmt.Errorf("ffmpeg dönüştürme: %w", err)
+		return fmt.Errorf("ffmpeg conversion: %w", err)
 	}
-	progress(100, "Tamamlandı: "+name+".mp3")
+		progress(100, "Completed: "+name+".mp3")
 	return nil
 }
 
@@ -205,7 +205,7 @@ func scanYTDLPProgress(r io.Reader, progress Progress) {
 		line := sc.Text()
 		if m := dlPctRE.FindStringSubmatch(line); m != nil {
 			if p, err := strconv.ParseFloat(m[1], 64); err == nil {
-				progress(int(p), "İndiriliyor...")
+				progress(int(p), "Downloading...")
 			}
 		}
 	}
@@ -229,7 +229,7 @@ func scanFFMPEGProgress(r io.Reader, progress Progress) {
 				if p > 100 {
 					p = 100
 				}
-				progress(p, "MP3'e çevriliyor...")
+				progress(p, "Converting to MP3...")
 			}
 		}
 	}
@@ -261,7 +261,7 @@ func findAudioFile(dir, base string) (string, error) {
 			return m, nil
 		}
 	}
-	return "", fmt.Errorf("yt-dlp ses dosyası üretmedi")
+	return "", fmt.Errorf("yt-dlp produced no audio file")
 }
 
 func findThumbnail(base string) string {

@@ -72,18 +72,18 @@ func spotifyQueryFor(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if !strings.Contains(trimmed, "spotify.") && !strings.HasPrefix(trimmed, "spotify:") {
 		if trimmed == "" {
-			return "", fmt.Errorf("spotify: boş sorgu")
+			return "", fmt.Errorf("spotify: empty query")
 		}
 		return trimmed, nil
 	}
 
 	m := spotifyEmbedRe.FindStringSubmatch(trimmed)
 	if m == nil {
-		return "", fmt.Errorf("spotify: desteklenmeyen URL formatı: %s", trimmed)
+		return "", fmt.Errorf("spotify: unsupported URL format: %s", trimmed)
 	}
 	ent, id := m[1], m[2]
 	if ent != "track" {
-		return "", fmt.Errorf("spotify: %s sayfası bu sürümde scrape ile desteklenmiyor; bridge toplayıcısına geçiliyor", ent)
+		return "", fmt.Errorf("spotify: page %s is not supported via scrape in this version; falling back to bridge collector", ent)
 	}
 
 	name, artist, err := scrapeSpotifyTrack(id)
@@ -134,7 +134,7 @@ func scrapeSpotifyTrack(id string) (name, artist string, err error) {
 	client := &http.Client{Timeout: 20 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("spotify: sayfa alınamadı: %w", err)
+		return "", "", fmt.Errorf("spotify: cannot fetch page: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -156,7 +156,7 @@ func scrapeSpotifyTrack(id string) (name, artist string, err error) {
 			}
 		}
 	}
-	return "", "", fmt.Errorf("spotify: parça metadata'sı çıkarılamadı (%s)", id)
+	return "", "", fmt.Errorf("spotify: cannot extract track metadata (%s)", id)
 }
 
 func unescapeHTML(s string) string {
