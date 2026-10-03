@@ -47,3 +47,16 @@ func FitPad(s string, w int) string {
 	}
 	return s
 }
+
+// FitPadCenter is FitPad but centers s: leftover cells split left/right
+// (odd cell goes right). Display-width aware, so CJK labels center correctly
+// too.
+func FitPadCenter(s string, w int) string {
+	s = FitLabel(s, w)
+	if pad := w - TextWidth(s); pad > 0 {
+		left := pad / 2
+		right := pad - left
+		s = strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+	}
+	return s
+}

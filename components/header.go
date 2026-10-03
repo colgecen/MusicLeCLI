@@ -78,7 +78,7 @@ func RenderHeader(width int, activeView string) string {
 
 	var tabs []string
 	for _, id := range navTabIDs {
-		label := ui.FitPad(NavLabel(id), tabContentW[id]-navTabPadH*2)
+		label := ui.FitPadCenter(NavLabel(id), tabContentW[id]-navTabPadH*2)
 		st := tabBase.Width(tabContentW[id])
 		if activeView == id {
 			st = st.BorderForeground(ui.ColorAccent).
