@@ -12,7 +12,7 @@ import (
 
 func RenderPlayerBar(width int, sectionFocused bool) string {
 	ps := state.Current.Player
-	title := ui.DimStyle.Render("No track playing")
+	title := ui.DimStyle.Render(noTrackText())
 	artist := ""
 	posStr := "00:00"
 	durStr := "00:00"

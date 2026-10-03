@@ -36,11 +36,11 @@ func RenderHeader(width int, activeView string) string {
 
 	type tabItem struct{ id, label string }
 	tabDefs := []tabItem{
-		{"home", " Home "},
-		{"downloads", " Downloads "},
-		{"profile", " Profile "},
-		{"playlist", " Playlist "},
-		{"settings", " General "},
+		{"home", headerTab("home")},
+		{"downloads", headerTab("downloads")},
+		{"profile", headerTab("profile")},
+		{"playlist", headerTab("playlist")},
+		{"settings", headerTab("settings")},
 	}
 	var tabs []string
 	for _, t := range tabDefs {
@@ -58,7 +58,7 @@ func RenderHeader(width int, activeView string) string {
 	}
 	netIndicator := lipgloss.NewStyle().Foreground(netColor).Render("o")
 	clock := time.Now().Format("15:04")
-	lang := state.T(state.Current.Language, "EN", "TR")
+	lang := langBadge()
 	statusDiv := divStyle.Render(fmt.Sprintf("%s %s %s", netIndicator, clock, lang))
 
 	logoW := lipgloss.Width(logoDiv)
