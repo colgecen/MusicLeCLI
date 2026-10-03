@@ -294,7 +294,7 @@ build_target() {
       ;;
   esac
   echo
-  echo "Bitti hacim. Cikti build/ klasorunde."
+  echo "Bitti."
 }
 
 interactive() {
