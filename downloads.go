@@ -73,8 +73,8 @@ func NewDownloadsModel() *DownloadsModel {
 		Foreground(lipgloss.Color("#000000"))
 
 	mi := textinput.New()
-	mi.Placeholder = "https://open.spotify.com/... veya https://youtube.com/..."
-	mi.Prompt = "  Müzik URL:  "
+	mi.Placeholder = "https://open.spotify.com/... / https://youtube.com/..."
+	mi.Prompt = "  " + Tr("dl.btn_music")[2:] + " URL:  "
 	mi.PromptStyle = ui.AccentStyle
 	mi.TextStyle = ui.WhiteStyle
 	mi.PlaceholderStyle = ui.DimStyle
@@ -83,7 +83,7 @@ func NewDownloadsModel() *DownloadsModel {
 	mi.CharLimit = 300
 
 	pi := textinput.New()
-	pi.Placeholder = "https://open.spotify.com/playlist/... veya https://youtube.com/playlist?..."
+	pi.Placeholder = "https://open.spotify.com/playlist/... / https://youtube.com/playlist?..."
 	pi.Prompt = "  Playlist URL:  "
 	pi.PromptStyle = ui.AccentStyle
 	pi.TextStyle = ui.WhiteStyle
