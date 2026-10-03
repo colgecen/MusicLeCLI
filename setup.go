@@ -95,7 +95,7 @@ func initializeDefaults(lang state.Language) tea.Cmd {
 		if err := state.Current.InitializeBaseDirs(rootDir); err != nil {
 			return errorMsg(err.Error())
 		}
-		if err := state.Current.CreateProfileStructure("default", "Default", "", "", lang); err != nil {
+		if err := state.Current.CreateProfileStructure("default", "Default", "", lang); err != nil {
 			return errorMsg(err.Error())
 		}
 		if err := state.Current.CreatePlaylistStructure("default", "my-playlist", "My Playlist", "", ""); err != nil {

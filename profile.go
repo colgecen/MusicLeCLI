@@ -17,7 +17,6 @@ type ProfileModel struct {
 
 	profileDropIdx int
 	profileOptions []string
-	avatarInput    textinput.Model
 	nameInput      textinput.Model
 	bioInput       textinput.Model
 	langIdx        int
@@ -37,13 +36,6 @@ func NewProfileModel() *ProfileModel {
 				}
 			}
 			return 0
-		}(),
-		avatarInput: func() textinput.Model {
-			ti := textinput.New()
-			ti.Prompt = Tr("profile.avatar_prompt")
-			ti.Placeholder = Tr("profile.avatar_ph")
-			ti.Width = 60
-			return ti
 		}(),
 		nameInput: func() textinput.Model {
 			ti := textinput.New()
@@ -105,7 +97,7 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if m.focus >= 1 && m.focus <= 3 {
 				m.selectAll = false
-				inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+				inputs := []*textinput.Model{&m.nameInput, &m.bioInput}
 				var cmd tea.Cmd
 				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
@@ -118,14 +110,14 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if m.focus >= 1 && m.focus <= 3 {
 				m.selectAll = false
-				inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+				inputs := []*textinput.Model{&m.nameInput, &m.bioInput}
 				var cmd tea.Cmd
 				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
 			}
 		case "left", "h", "right", "l":
 			// Cycle profile language (only outside text inputs).
-			if m.focus == 0 || m.focus == 4 {
+			if m.focus == 0 || m.focus == 3 {
 				langs := state.AllLanguages()
 				dir := 1
 				if msg.String() == "left" || msg.String() == "h" {
@@ -135,19 +127,19 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if m.focus >= 1 && m.focus <= 3 {
-				inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+				inputs := []*textinput.Model{&m.nameInput, &m.bioInput}
 				var cmd tea.Cmd
 				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
 			}
 		case "tab":
 			m.selectAll = false
-			m.setFocus((m.focus + 1) % 5)
+			m.setFocus((m.focus + 1) % 4)
 		case "shift+tab":
 			m.selectAll = false
-			m.setFocus((m.focus - 1 + 5) % 5)
+			m.setFocus((m.focus - 1 + 4) % 4)
 		case "enter":
-			if m.focus == 4 {
+			if m.focus == 3 {
 				cp := state.Current.CurrentProfile
 				if cp == nil {
 					return m, nil
@@ -157,18 +149,9 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					name = cp.FolderName
 				}
 				bio := strings.TrimSpace(m.bioInput.Value())
-				avatarSrc := strings.TrimSpace(m.avatarInput.Value())
 				if err := state.Current.SaveProfileMeta(cp.FolderName, name, bio); err != nil {
 					m.profileStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 					return m, nil
-				}
-				if avatarSrc != "" {
-					profileDir := state.Current.ProfilesDir()
-					ext := ".jpg"
-					if strings.HasSuffix(strings.ToLower(avatarSrc), ".png") {
-						ext = ".png"
-					}
-					_ = state.CopyFile(avatarSrc, profileDir+"/"+cp.FolderName+"/avatar/avatar"+ext)
 				}
 				langs := state.AllLanguages()
 				lang := langs[m.langIdx%len(langs)]
@@ -188,13 +171,13 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focus = 0
 		case "ctrl+v":
 			if m.focus >= 1 && m.focus <= 3 {
-				inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+				inputs := []*textinput.Model{&m.nameInput, &m.bioInput}
 				*inputs[m.focus-1], _ = inputs[m.focus-1].Update(textinput.Paste())
 				return m, nil
 			}
 		case "ctrl+a":
 			if m.focus >= 1 && m.focus <= 3 {
-				inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+				inputs := []*textinput.Model{&m.nameInput, &m.bioInput}
 				if inputs[m.focus-1].Value() != "" {
 					m.selectAll = true
 				}
@@ -203,7 +186,7 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			if m.focus >= 1 && m.focus <= 3 {
 				if m.selectAll {
-					inp := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}[m.focus-1]
+					inp := []*textinput.Model{&m.nameInput, &m.bioInput}[m.focus-1]
 					s := msg.String()
 					if len(s) == 1 || s == "backspace" || s == "delete" {
 						inp.SetValue("")
@@ -213,7 +196,7 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.selectAll = false
 					}
 				}
-				inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+				inputs := []*textinput.Model{&m.nameInput, &m.bioInput}
 				var cmd tea.Cmd
 				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
@@ -224,11 +207,11 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *ProfileModel) setFocus(idx int) {
-	if idx < 0 || idx >= 5 {
+	if idx < 0 || idx >= 4 {
 		return
 	}
 	m.focus = idx
-	inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+	inputs := []*textinput.Model{&m.nameInput, &m.bioInput}
 	for i, inp := range inputs {
 		if i+1 == idx {
 			inp.Focus()
@@ -239,7 +222,7 @@ func (m *ProfileModel) setFocus(idx int) {
 }
 
 func (m *ProfileModel) cycleFocus() bool {
-	m.setFocus((m.focus + 1) % 5)
+	m.setFocus((m.focus + 1) % 4)
 	return m.focus == 0
 }
 
@@ -261,23 +244,12 @@ func (m *ProfileModel) View() string {
 		profileV = "  " + ui.WhiteStyle.Render(profileV)
 	}
 
-	avatarVal := m.avatarInput.Value()
-	if avatarVal == "" {
-		avatarVal = m.avatarInput.Placeholder
-	}
-	var avatarV string
-	if m.focus == 1 {
-		avatarV = m.avatarInput.View()
-	} else {
-		avatarV = Tr("profile.avatar_prompt") + ui.WhiteStyle.Render(avatarVal)
-	}
-
 	nameVal := m.nameInput.Value()
 	if nameVal == "" {
 		nameVal = m.nameInput.Placeholder
 	}
 	var nameV string
-	if m.focus == 2 {
+	if m.focus == 1 {
 		nameV = m.nameInput.View()
 	} else {
 		nameV = Tr("profile.name_prompt") + ui.WhiteStyle.Render(nameVal)
@@ -288,7 +260,7 @@ func (m *ProfileModel) View() string {
 		bioVal = m.bioInput.Placeholder
 	}
 	var bioV string
-	if m.focus == 3 {
+	if m.focus == 2 {
 		bioV = m.bioInput.View()
 	} else {
 		bioV = Tr("profile.bio_prompt") + ui.WhiteStyle.Render(bioVal)
@@ -302,10 +274,6 @@ func (m *ProfileModel) View() string {
 	boxContent := lipgloss.JoinVertical(lipgloss.Left,
 		"",
 		ui.SectionTitleStyle.Render(" "+Tr("profile.title")+": ")+profileV,
-		"",
-		ui.SectionTitleStyle.Render(Tr("profile.sec_avatar")),
-		"",
-		avatarV,
 		"",
 		ui.SectionTitleStyle.Render(Tr("profile.sec_name")),
 		"",
@@ -321,7 +289,7 @@ func (m *ProfileModel) View() string {
 		"",
 		func() string {
 			btn := ui.AccentButtonStyle.Render(saveTxt)
-			if m.focus == 4 {
+			if m.focus == 3 {
 				btn = ui.FocusedButtonStyle.Render(saveTxt)
 			}
 			return btn

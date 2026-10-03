@@ -126,7 +126,7 @@ func (m *ConnectModel) confirm(i int) error {
 	}
 	pl := m.playlists[i]
 	displayName, folderName := browser.NextProfileName(state.Current.Profiles, m.chosen, state.Current.ProfilesDir())
-	if err := state.Current.CreateProfileStructure(folderName, displayName, "", "", state.Current.Language); err != nil {
+	if err := state.Current.CreateProfileStructure(folderName, displayName, "", state.Current.Language); err != nil {
 		return err
 	}
 	plFolder := uniqueFolder(browser.Slugify(pl.Name), folderName)

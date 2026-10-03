@@ -416,7 +416,7 @@ func TestCreateProfileStructure(t *testing.T) {
 	app := &state.AppState{RootDir: root}
 	app.InitializeBaseDirs(root)
 
-	if err := app.CreateProfileStructure("testuser", "Test User", "A bio", "", state.LangTurkish); err != nil {
+	if err := app.CreateProfileStructure("testuser", "Test User", "A bio", state.LangTurkish); err != nil {
 		t.Fatalf("CreateProfileStructure: %v", err)
 	}
 
@@ -439,7 +439,7 @@ func TestCreateProfileStructure(t *testing.T) {
 	checkFile("lang.txt", "tr")
 
 	// Verify subdirs exist
-	for _, d := range []string{"avatar", "playlists"} {
+	for _, d := range []string{"playlists"} {
 		fi, err := os.Stat(filepath.Join(profDir, d))
 		if err != nil || !fi.IsDir() {
 			t.Errorf("subdir %s missing or not a dir", d)
@@ -454,7 +454,7 @@ func TestCreatePlaylistStructure(t *testing.T) {
 	root := filepath.Join(dir, "music")
 	app := &state.AppState{RootDir: root}
 	app.InitializeBaseDirs(root)
-	app.CreateProfileStructure("user", "User", "", "", state.LangEnglish)
+	app.CreateProfileStructure("user", "User", "", state.LangEnglish)
 
 	if err := app.CreatePlaylistStructure("user", "mypl", "My Playlist", "My bio", ""); err != nil {
 		t.Fatalf("CreatePlaylistStructure: %v", err)
@@ -483,7 +483,7 @@ func TestSaveProfileMeta(t *testing.T) {
 	root := filepath.Join(dir, "music")
 	app := &state.AppState{RootDir: root}
 	app.InitializeBaseDirs(root)
-	app.CreateProfileStructure("u", "Old", "", "", state.LangEnglish)
+	app.CreateProfileStructure("u", "Old", "", state.LangEnglish)
 
 	app.SaveProfileMeta("u", "New Name", "New bio")
 	data, _ := os.ReadFile(filepath.Join(root, "profiles", "u", "name.txt"))
@@ -503,7 +503,7 @@ func TestSavePlaylistMeta(t *testing.T) {
 	root := filepath.Join(dir, "music")
 	app := &state.AppState{RootDir: root}
 	app.InitializeBaseDirs(root)
-	app.CreateProfileStructure("u", "U", "", "", state.LangEnglish)
+	app.CreateProfileStructure("u", "U", "", state.LangEnglish)
 	app.CreatePlaylistStructure("u", "pl", "Old", "Old bio", "")
 
 	app.SavePlaylistMeta("u", "pl", "New PL", "New bio")
@@ -525,7 +525,7 @@ func TestDeletePlaylist(t *testing.T) {
 	root := filepath.Join(dir, "music")
 	app := &state.AppState{RootDir: root}
 	app.InitializeBaseDirs(root)
-	app.CreateProfileStructure("u", "U", "", "", state.LangEnglish)
+	app.CreateProfileStructure("u", "U", "", state.LangEnglish)
 	app.CreatePlaylistStructure("u", "pl", "PL", "B", "")
 
 	if err := app.DeletePlaylist("u", "pl"); err != nil {
@@ -635,8 +635,8 @@ func TestScanProfiles(t *testing.T) {
 	app := &state.AppState{RootDir: root}
 	app.InitializeBaseDirs(root)
 
-	app.CreateProfileStructure("u1", "User One", "Bio1", "", state.LangEnglish)
-	app.CreateProfileStructure("u2", "User Two", "Bio2", "", state.LangTurkish)
+	app.CreateProfileStructure("u1", "User One", "Bio1", state.LangEnglish)
+	app.CreateProfileStructure("u2", "User Two", "Bio2", state.LangTurkish)
 
 	if err := app.ScanProfiles(); err != nil {
 		t.Fatalf("ScanProfiles: %v", err)

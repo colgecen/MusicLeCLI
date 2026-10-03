@@ -110,7 +110,6 @@ type Profile struct {
 	DisplayName string
 	Bio         string
 	Language    Language
-	AvatarPath  string
 	Playlists   []Playlist
 }
 
@@ -271,17 +270,6 @@ func loadProfile(dir, folderName string) (Profile, error) {
 		Bio:         readTxt(filepath.Join(dir, "bio.txt"), ""),
 		Language:    Language(readTxt(filepath.Join(dir, "lang.txt"), "en")),
 	}
-	// Find avatar image
-	avatarDir := filepath.Join(dir, "avatar")
-	if entries, err := os.ReadDir(avatarDir); err == nil {
-		for _, e := range entries {
-			ext := strings.ToLower(filepath.Ext(e.Name()))
-			if ext == ".png" || ext == ".jpg" || ext == ".jpeg" {
-				p.AvatarPath = filepath.Join(avatarDir, e.Name())
-				break
-			}
-		}
-	}
 	// Scan playlists
 	plDir := filepath.Join(dir, "playlists")
 	if entries, err := os.ReadDir(plDir); err == nil {
@@ -385,9 +373,9 @@ func normalizeDuration(s string) string {
 }
 
 // CreateProfileStructure writes the full directory/file scaffold for a new profile
-func (a *AppState) CreateProfileStructure(folderName, displayName, bio, avatarSrc string, lang Language) error {
+func (a *AppState) CreateProfileStructure(folderName, displayName, bio string, lang Language) error {
 	profileDir := filepath.Join(a.ProfilesDir(), folderName)
-	for _, d := range []string{profileDir, filepath.Join(profileDir, "avatar"), filepath.Join(profileDir, "playlists")} {
+	for _, d := range []string{profileDir, filepath.Join(profileDir, "playlists")} {
 		if err := os.MkdirAll(d, 0755); err != nil {
 			return err
 		}
@@ -400,13 +388,6 @@ func (a *AppState) CreateProfileStructure(folderName, displayName, bio, avatarSr
 	}
 	if err := writeTxt(filepath.Join(profileDir, "lang.txt"), string(lang)); err != nil {
 		return err
-	}
-	if avatarSrc != "" {
-		ext := filepath.Ext(avatarSrc)
-		if ext == "" {
-			ext = ".jpg"
-		}
-		_ = CopyFile(avatarSrc, filepath.Join(profileDir, "avatar", "avatar"+ext))
 	}
 	return nil
 }
