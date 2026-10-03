@@ -525,14 +525,35 @@ func (m *SettingsModel) renderThemeTab(width int) string {
 	var lines []string
 	lines = append(lines, ui.SectionTitleStyle.Render(" "+Tr("tab.theme")+" "))
 	lines = append(lines, "")
-	for i, n := range themeNames {
-		colorHex := ui.ThemeColors[n]
-		colorSample := lipgloss.NewStyle().Foreground(lipgloss.Color(colorHex)).Render("###")
-		line := "  " + colorSample + "  " + n
-		if m.rightFocused && i == m.themeIdx {
-			line = ui.AccentStyle.Bold(true).Render("> ") + colorSample + "  " + ui.WhiteStyle.Bold(true).Render(n)
+	// Presets render as a grid (navigation stays linear: every arrow key
+	// steps to the next/previous theme in order).
+	cols := 2
+	if width >= 100 {
+		cols = 3
+	}
+	cellW := 0
+	for _, n := range themeNames {
+		if w := ui.TextWidth("###  "+n) + 2; w > cellW {
+			cellW = w
 		}
-		lines = append(lines, line)
+	}
+	for r := 0; r < len(themeNames); r += cols {
+		cells := make([]string, 0, cols)
+		for c := 0; c < cols; c++ {
+			i := r + c
+			if i >= len(themeNames) {
+				cells = append(cells, strings.Repeat(" ", cellW))
+				continue
+			}
+			n := themeNames[i]
+			colorSample := lipgloss.NewStyle().Foreground(lipgloss.Color(ui.ThemeColors[n])).Render("###")
+			cell := "  " + colorSample + "  " + n
+			if m.rightFocused && i == m.themeIdx {
+				cell = ui.AccentStyle.Bold(true).Render("> ") + colorSample + "  " + ui.WhiteStyle.Bold(true).Render(n)
+			}
+			cells = append(cells, ui.FitPad(cell, cellW))
+		}
+		lines = append(lines, strings.Join(cells, "  "))
 	}
 	// Trailing Custom row: current custom hex as its sample.
 	customHex, isCustom := ui.ParseHexColor(state.Current.Theme)
