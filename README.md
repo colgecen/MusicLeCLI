@@ -2,7 +2,7 @@
 
 Terminalde çalışan, Spotify esintili arayüzlü müzik çalar ve kişisel arşiv yöneticisi (Go + Bubble Tea).
 
-![MusicLe CLI](assets/MusicleCLI-app.png)
+![MusicLe CLI](assets/musicle-app.png)
 
 ## Özellikler
 
@@ -49,4 +49,4 @@ Yapılandırma `~/.config/musicle/config.json`, müzik arşivi `~/Music/MusicLe/
 
 ## Lisans
 
-Bu proje [MIT](LICENSE) lisansı altında lisanslanmıştır.
+Bu proje [Apache-2.0](LICENSE) lisansı altında lisanslanmıştır.
