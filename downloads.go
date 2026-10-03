@@ -63,6 +63,7 @@ type DownloadsModel struct {
 	progressLine     string // "Downloading... X%" shown during download
 	resultLine       string // completion message shown under progress
 	resultIsErr      bool   // styles resultLine red; language-independent
+	jobKind          string // "music" | "playlist" | "" — what the live status block describes
 	lastLoggedPct    int    // dedup progress logs (legacy)
 
 	playlistOptions []string
@@ -448,11 +449,12 @@ func (m *DownloadsModel) currentInput() *textinput.Model {
 	return nil
 }
 
-// TrackProgress updates the on-screen status line (e.g. "Downloading... 45%").
+// TrackProgress updates the live status block (percent + bridge detail).
 // It intentionally does NOT write to the console log, so the console stays
 // quiet during normal downloads — only the status block shows progress.
 func (m *DownloadsModel) TrackProgress(active bool, pct float64, status string) {
 	m.downloadPercent = pct
+	m.downloadStatus = status
 	if !active {
 		// Final transition is handled by handleDownloadResult, which knows
 		// the track title / song count for a proper completion message.
@@ -490,6 +492,7 @@ func (m *DownloadsModel) startPlaylistDownload() tea.Cmd {
 	m.progressLine = ""
 	m.resultLine = ""
 	m.resultIsErr = false
+	m.jobKind = "playlist"
 	m.downloadedTracks = 0
 	m.failedTracks = 0
 
@@ -570,6 +573,7 @@ func (m *DownloadsModel) startDownload() tea.Cmd {
 	m.progressLine = ""
 	m.resultLine = ""
 	m.resultIsErr = false
+	m.jobKind = "music"
 	m.downloadedTracks = 0
 	m.failedTracks = 0
 	m.lastLoggedPct = -1
@@ -799,13 +803,29 @@ func (m *DownloadsModel) renderConsole(bodyH int) string {
 	w := m.consoleWidth()
 	title := ui.SectionTitleStyle.Render(Tr("dl.console"))
 
-	// Status block (progress + result) shown at the top of the console,
-	// above any error logs. Keeps the console clean during downloads.
+	// Live 3-line status block at the top of the console, above any logs:
+	// line 1 = what is downloading, line 2 = live percent + bar,
+	// line 3 = live bridge detail while active, final result when done.
 	var statusParts []string
-	if m.progressLine != "" {
-		statusParts = append(statusParts, ui.WhiteStyle.Render(m.progressLine))
-	}
-	if m.resultLine != "" {
+	if m.isDownloading {
+		kind := Tr("dl.job_music")
+		if m.jobKind == "playlist" {
+			kind = Tr("dl.job_playlist")
+		}
+		statusParts = append(statusParts, ui.AccentStyle.Render("♪ "+kind))
+		pct := int(m.downloadPercent)
+		if pct < 0 {
+			pct = 0
+		}
+		if pct > 100 {
+			pct = 100
+		}
+		bar := ui.ProgressBar(m.downloadPercent, 100, 20)
+		statusParts = append(statusParts, ui.WhiteStyle.Render(fmt.Sprintf("%d%%  %s", pct, bar)))
+		if m.downloadStatus != "" {
+			statusParts = append(statusParts, ui.DimStyle.Render(m.downloadStatus))
+		}
+	} else if m.resultLine != "" {
 		if m.resultIsErr {
 			statusParts = append(statusParts, logErrStyle.Render(m.resultLine))
 		} else {

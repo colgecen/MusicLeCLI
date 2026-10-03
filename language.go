@@ -1851,6 +1851,33 @@ var allTranslations = map[string]map[state.Language]string{
 		state.LangRussian:    "Аудиофайлы",
 	},
 
+	"dl.job_music": {
+		state.LangEnglish:    "Downloading music…",
+		state.LangTurkish:    "Müzik indiriliyor…",
+		state.LangSpanish:    "Descargando música…",
+		state.LangGerman:     "Musik wird geladen…",
+		state.LangFrench:     "Téléchargement de musique…",
+		state.LangArabic:     "جارٍ تنزيل الموسيقى…",
+		state.LangPortuguese: "Baixando música…",
+		state.LangChinese:    "正在下载音乐…",
+		state.LangJapanese:   "音楽をダウンロード中…",
+		state.LangItalian:    "Download musica…",
+		state.LangRussian:    "Загрузка музыки…",
+	},
+	"dl.job_playlist": {
+		state.LangEnglish:    "Downloading playlist…",
+		state.LangTurkish:    "Playlist indiriliyor…",
+		state.LangSpanish:    "Descargando lista…",
+		state.LangGerman:     "Playlist wird geladen…",
+		state.LangFrench:     "Téléchargement de playlist…",
+		state.LangArabic:     "جارٍ تنزيل القائمة…",
+		state.LangPortuguese: "Baixando playlist…",
+		state.LangChinese:    "正在下载歌单…",
+		state.LangJapanese:   "プレイリストをダウンロード中…",
+		state.LangItalian:    "Download playlist…",
+		state.LangRussian:    "Загрузка плейлиста…",
+	},
+
 	// ── Profile form ──────────────────────────────────────────────
 	"profile.avatar_prompt": {
 		state.LangEnglish:    "  Avatar Path:  ",
