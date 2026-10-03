@@ -486,7 +486,13 @@ func (m *SettingsModel) renderLangTab(width int) string {
 	langs := state.AllLanguages()
 	var items []string
 	for i, l := range langs {
-		label := Tr("lang." + string(l))
+		// Native name always visible; localized name in parens when different.
+		native := state.LanguageEndonym(l)
+		localized := Tr("lang." + string(l))
+		label := native
+		if localized != native && localized != "lang."+string(l) {
+			label = native + "  (" + localized + ")"
+		}
 		line := "  " + label
 		if m.rightFocused && i == m.langIdx {
 			line = ui.AccentStyle.Bold(true).Render("> ") + ui.WhiteStyle.Bold(true).Render(label)
