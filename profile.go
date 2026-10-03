@@ -31,29 +31,31 @@ type ProfileModel struct {
 func NewProfileModel() *ProfileModel {
 	return &ProfileModel{
 		langIdx: func() int {
-			if state.Current.Language == state.LangTurkish {
-				return 1
+			for i, l := range state.AllLanguages() {
+				if l == state.Current.Language {
+					return i
+				}
 			}
 			return 0
 		}(),
 		avatarInput: func() textinput.Model {
 			ti := textinput.New()
-			ti.Prompt = "  Avatar Path:  "
-			ti.Placeholder = "optional"
+			ti.Prompt = Tr("profile.avatar_prompt")
+			ti.Placeholder = Tr("profile.avatar_ph")
 			ti.Width = 60
 			return ti
 		}(),
 		nameInput: func() textinput.Model {
 			ti := textinput.New()
-			ti.Prompt = "  Display Name:  "
+			ti.Prompt = Tr("profile.name_prompt")
 			ti.Placeholder = "MusicLeCLI User"
 			ti.Width = 60
 			return ti
 		}(),
 		bioInput: func() textinput.Model {
 			ti := textinput.New()
-			ti.Prompt = "  Bio:  "
-			ti.Placeholder = "Music lover"
+			ti.Prompt = Tr("profile.bio_prompt")
+			ti.Placeholder = Tr("profile.bio_ph")
 			ti.Width = 60
 			return ti
 		}(),
@@ -121,6 +123,23 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
 			}
+		case "left", "h", "right", "l":
+			// Cycle profile language (only outside text inputs).
+			if m.focus == 0 || m.focus == 4 {
+				langs := state.AllLanguages()
+				dir := 1
+				if msg.String() == "left" || msg.String() == "h" {
+					dir = -1
+				}
+				m.langIdx = (m.langIdx + dir + len(langs)) % len(langs)
+				return m, nil
+			}
+			if m.focus >= 1 && m.focus <= 3 {
+				inputs := []*textinput.Model{&m.avatarInput, &m.nameInput, &m.bioInput}
+				var cmd tea.Cmd
+				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
+				return m, cmd
+			}
 		case "tab":
 			m.selectAll = false
 			m.setFocus((m.focus + 1) % 5)
@@ -140,7 +159,7 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				bio := strings.TrimSpace(m.bioInput.Value())
 				avatarSrc := strings.TrimSpace(m.avatarInput.Value())
 				if err := state.Current.SaveProfileMeta(cp.FolderName, name, bio); err != nil {
-					m.profileStatus = ui.ErrorStyle.Render("  x " + err.Error())
+					m.profileStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 					return m, nil
 				}
 				if avatarSrc != "" {
@@ -151,10 +170,8 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					_ = state.CopyFile(avatarSrc, profileDir+"/"+cp.FolderName+"/avatar/avatar"+ext)
 				}
-				lang := state.LangEnglish
-				if m.langIdx == 1 {
-					lang = state.LangTurkish
-				}
+				langs := state.AllLanguages()
+				lang := langs[m.langIdx%len(langs)]
 				state.Current.Language = lang
 				_ = state.Current.SaveConfig()
 				_ = state.Current.ScanProfiles()
@@ -165,7 +182,7 @@ func (m *ProfileModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				m.refreshOptions()
-				m.profileStatus = ui.AccentStyle.Render("  v " + langT("Saved!", "Kaydedildi!"))
+				m.profileStatus = ui.AccentStyle.Render("  v " + Tr("pl.saved"))
 			}
 		case "esc":
 			m.focus = 0
@@ -252,7 +269,7 @@ func (m *ProfileModel) View() string {
 	if m.focus == 1 {
 		avatarV = m.avatarInput.View()
 	} else {
-		avatarV = "  Avatar Path:  " + ui.WhiteStyle.Render(avatarVal)
+		avatarV = Tr("profile.avatar_prompt") + ui.WhiteStyle.Render(avatarVal)
 	}
 
 	nameVal := m.nameInput.Value()
@@ -263,7 +280,7 @@ func (m *ProfileModel) View() string {
 	if m.focus == 2 {
 		nameV = m.nameInput.View()
 	} else {
-		nameV = "  Display Name:  " + ui.WhiteStyle.Render(nameVal)
+		nameV = Tr("profile.name_prompt") + ui.WhiteStyle.Render(nameVal)
 	}
 
 	bioVal := m.bioInput.Value()
@@ -274,44 +291,44 @@ func (m *ProfileModel) View() string {
 	if m.focus == 3 {
 		bioV = m.bioInput.View()
 	} else {
-		bioV = "  Bio:  " + ui.WhiteStyle.Render(bioVal)
+		bioV = Tr("profile.bio_prompt") + ui.WhiteStyle.Render(bioVal)
 	}
 
-	langOpts := "English"
-	if m.langIdx == 1 {
-		langOpts = "Turkce"
-	}
+	langs := state.AllLanguages()
+	langOpts := state.LanguageEndonym(langs[m.langIdx%len(langs)])
 
+	saveW := maxTrWidth("profile.save")
+	saveTxt := ui.FitPad(Tr("profile.save"), saveW)
 	boxContent := lipgloss.JoinVertical(lipgloss.Left,
 		"",
-		ui.SectionTitleStyle.Render(" "+langT("Profile", "Profil")+": ")+profileV,
+		ui.SectionTitleStyle.Render(" "+Tr("profile.title")+": ")+profileV,
 		"",
-		ui.SectionTitleStyle.Render(" Avatar Image "),
+		ui.SectionTitleStyle.Render(Tr("profile.sec_avatar")),
 		"",
 		avatarV,
 		"",
-		ui.SectionTitleStyle.Render(" Display Name "),
+		ui.SectionTitleStyle.Render(Tr("profile.sec_name")),
 		"",
 		nameV,
 		"",
-		ui.SectionTitleStyle.Render(" Bio "),
+		ui.SectionTitleStyle.Render(Tr("profile.sec_bio")),
 		"",
 		bioV,
 		"",
-		ui.SectionTitleStyle.Render(" Language: ")+ui.WhiteStyle.Render(langOpts),
+		ui.SectionTitleStyle.Render(Tr("profile.sec_lang"))+ui.WhiteStyle.Render(langOpts),
 		"",
 		m.profileStatus,
 		"",
 		func() string {
-			btn := ui.AccentButtonStyle.Render(langT("  Save Profile  ", "  Profili Kaydet  "))
+			btn := ui.AccentButtonStyle.Render(saveTxt)
 			if m.focus == 4 {
-				btn = ui.FocusedButtonStyle.Render(langT("  Save Profile  ", "  Profili Kaydet  "))
+				btn = ui.FocusedButtonStyle.Render(saveTxt)
 			}
 			return btn
 		}(),
 	)
 
-	title := ui.SectionTitleStyle.Render(langT(" Profile Settings", " Profil Ayarlari"))
+	title := ui.SectionTitleStyle.Render(Tr("profile.settings"))
 
 	// Fill available height so it matches playlist page height
 	contentH := m.height - 4
