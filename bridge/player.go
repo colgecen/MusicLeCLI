@@ -258,13 +258,25 @@ func (p *playerEngine) seek(delta float64) *Result {
 	if p.streamer == nil {
 		return &Result{Status: "error", Error: "no active playback"}
 	}
+	streamLen := p.streamer.Len()
+	if streamLen <= 0 {
+		return &Result{Status: "error", Error: "seek: empty stream"}
+	}
 	pos := p.currentPositionLocked()
 	newPos := math.Max(0, pos+delta)
 	newSample := int(newPos * float64(p.format.SampleRate))
-	if newSample >= p.streamer.Len() {
-		newSample = p.streamer.Len() - 1
+	if newSample >= streamLen {
+		newSample = streamLen - 1
 	}
+	if newSample < 0 {
+		newSample = 0
+	}
+	// beep requires the speaker lock around Seek on a playing streamer:
+	// without it, rapid seeks race the speaker goroutine's reads and
+	// corrupt the decoder, panicking the whole app.
+	speaker.Lock()
 	err := p.streamer.Seek(newSample)
+	speaker.Unlock()
 	if err != nil {
 		return &Result{Status: "error", Error: fmt.Sprintf("seek: %v", err)}
 	}

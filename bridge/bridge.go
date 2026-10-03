@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"fmt"
 	"sync"
 
 	"MusicLeCLI/state"
@@ -68,8 +69,16 @@ func Init(projectDir string) {
 	_ = initPlayer()
 }
 
-// PlayerCall handles audio engine actions.
-func PlayerCall(action Action) (*Result, error) {
+// PlayerCall handles audio engine actions. A panic anywhere in the audio
+// backend is converted to an error result: audio bugs must never kill the
+// TUI (the UI fires PlayerCall from throwaway goroutines per keypress).
+func PlayerCall(action Action) (res *Result, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			res = &Result{Status: "error", Error: fmt.Sprintf("player panic: %v", r)}
+			err = nil
+		}
+	}()
 	switch action.Action {
 	case "play":
 		return player.play(action.File), nil
