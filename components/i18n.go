@@ -1,139 +1,112 @@
 package components
 
-import "MusicLeCLI/state"
+import (
+	"MusicLeCLI/state"
+	"MusicLeCLI/ui"
+)
 
-// headerTab returns the localized header tab label for the given nav id.
-// Duplicates main.Tr for the components package (main cannot be imported).
-func headerTab(id string) string {
-	lang := state.Current.Language
-	switch id {
-	case "home":
-		switch lang {
-		case state.LangTurkish:
-			return " Ana Sayfa "
-		case state.LangSpanish:
-			return " Inicio "
-		case state.LangGerman:
-			return " Startseite "
-		case state.LangFrench:
-			return " Accueil "
-		case state.LangArabic:
-			return " الرئيسية "
-		case state.LangPortuguese:
-			return " Início "
-		case state.LangChinese:
-			return " 首页 "
-		case state.LangJapanese:
-			return " ホーム "
-		case state.LangItalian:
-			return " Home "
-		case state.LangRussian:
-			return " Главная "
-		default:
-			return " Home "
+// navLabels holds every header tab label in all 11 languages, without
+// surrounding spaces (spacing comes from the tab style padding, so it is
+// counted exactly once).
+var navLabels = map[string]map[state.Language]string{
+	"home": {
+		state.LangTurkish:    "Ana Sayfa",
+		state.LangEnglish:    "Home",
+		state.LangSpanish:    "Inicio",
+		state.LangGerman:     "Startseite",
+		state.LangFrench:     "Accueil",
+		state.LangArabic:     "الرئيسية",
+		state.LangPortuguese: "Início",
+		state.LangChinese:    "首页",
+		state.LangJapanese:   "ホーム",
+		state.LangItalian:    "Home",
+		state.LangRussian:    "Главная",
+	},
+	"downloads": {
+		state.LangTurkish:    "İndirilenler",
+		state.LangEnglish:    "Downloads",
+		state.LangSpanish:    "Descargas",
+		state.LangGerman:     "Downloads",
+		state.LangFrench:     "Téléchargements",
+		state.LangArabic:     "التنزيلات",
+		state.LangPortuguese: "Downloads",
+		state.LangChinese:    "下载",
+		state.LangJapanese:   "ダウンロード",
+		state.LangItalian:    "Download",
+		state.LangRussian:    "Загрузки",
+	},
+	"profile": {
+		state.LangTurkish:    "Profil",
+		state.LangEnglish:    "Profile",
+		state.LangSpanish:    "Perfil",
+		state.LangGerman:     "Profil",
+		state.LangFrench:     "Profil",
+		state.LangArabic:     "الملف الشخصي",
+		state.LangPortuguese: "Perfil",
+		state.LangChinese:    "个人资料",
+		state.LangJapanese:   "プロフィール",
+		state.LangItalian:    "Profilo",
+		state.LangRussian:    "Профиль",
+	},
+	"playlist": {
+		state.LangTurkish:    "Çalma Listesi",
+		state.LangEnglish:    "Playlist",
+		state.LangSpanish:    "Lista",
+		state.LangGerman:     "Playlist",
+		state.LangFrench:     "Playlist",
+		state.LangArabic:     "قائمة التشغيل",
+		state.LangPortuguese: "Playlist",
+		state.LangChinese:    "播放列表",
+		state.LangJapanese:   "プレイリスト",
+		state.LangItalian:    "Playlist",
+		state.LangRussian:    "Плейлист",
+	},
+	"settings": {
+		state.LangTurkish:    "Genel",
+		state.LangEnglish:    "General",
+		state.LangSpanish:    "General",
+		state.LangGerman:     "Allgemein",
+		state.LangFrench:     "Général",
+		state.LangArabic:     "عام",
+		state.LangPortuguese: "Geral",
+		state.LangChinese:    "通用",
+		state.LangJapanese:   "一般",
+		state.LangItalian:    "Generali",
+		state.LangRussian:    "Общие",
+	},
+}
+
+// navTabIDs lists the header tabs in display order.
+var navTabIDs = []string{"home", "downloads", "profile", "playlist", "settings"}
+
+// navTabPadH mirrors the horizontal padding of the tab style in header.go.
+const navTabPadH = 2
+
+// NavLabel returns the clean (unpadded) tab label for the current language.
+func NavLabel(id string) string {
+	if m, ok := navLabels[id]; ok {
+		if s, ok := m[state.Current.Language]; ok {
+			return s
 		}
-	case "downloads":
-		switch lang {
-		case state.LangTurkish:
-			return " İndirilenler "
-		case state.LangSpanish:
-			return " Descargas "
-		case state.LangGerman:
-			return " Downloads "
-		case state.LangFrench:
-			return " Téléchargements "
-		case state.LangArabic:
-			return " التنزيلات "
-		case state.LangPortuguese:
-			return " Downloads "
-		case state.LangChinese:
-			return " 下载 "
-		case state.LangJapanese:
-			return " ダウンロード "
-		case state.LangItalian:
-			return " Download "
-		case state.LangRussian:
-			return " Загрузки "
-		default:
-			return " Downloads "
-		}
-	case "profile":
-		switch lang {
-		case state.LangTurkish:
-			return " Profil "
-		case state.LangSpanish:
-			return " Perfil "
-		case state.LangGerman:
-			return " Profil "
-		case state.LangFrench:
-			return " Profil "
-		case state.LangArabic:
-			return " الملف الشخصي "
-		case state.LangPortuguese:
-			return " Perfil "
-		case state.LangChinese:
-			return " 个人资料 "
-		case state.LangJapanese:
-			return " プロフィール "
-		case state.LangItalian:
-			return " Profilo "
-		case state.LangRussian:
-			return " Профиль "
-		default:
-			return " Profile "
-		}
-	case "playlist":
-		switch lang {
-		case state.LangTurkish:
-			return " Çalma Listesi "
-		case state.LangSpanish:
-			return " Lista "
-		case state.LangGerman:
-			return " Playlist "
-		case state.LangFrench:
-			return " Playlist "
-		case state.LangArabic:
-			return " قائمة التشغيل "
-		case state.LangPortuguese:
-			return " Playlist "
-		case state.LangChinese:
-			return " 播放列表 "
-		case state.LangJapanese:
-			return " プレイリスト "
-		case state.LangItalian:
-			return " Playlist "
-		case state.LangRussian:
-			return " Плейлист "
-		default:
-			return " Playlist "
-		}
-	case "settings":
-		switch lang {
-		case state.LangTurkish:
-			return " Genel "
-		case state.LangSpanish:
-			return " General "
-		case state.LangGerman:
-			return " Allgemein "
-		case state.LangFrench:
-			return " Général "
-		case state.LangArabic:
-			return " عام "
-		case state.LangPortuguese:
-			return " Geral "
-		case state.LangChinese:
-			return " 通用 "
-		case state.LangJapanese:
-			return " 一般 "
-		case state.LangItalian:
-			return " Generali "
-		case state.LangRussian:
-			return " Общие "
-		default:
-			return " General "
+		if s, ok := m[state.LangEnglish]; ok {
+			return s
 		}
 	}
 	return id
+}
+
+// NavTabWidth returns the fixed content width for a nav tab: the longest
+// label across all 11 languages plus horizontal padding. The value never
+// depends on the active language, so tabs keep their exact size and position
+// when the language changes.
+func NavTabWidth(id string) int {
+	max := 0
+	for _, s := range navLabels[id] {
+		if w := ui.TextWidth(s); w > max {
+			max = w
+		}
+	}
+	return max + navTabPadH*2
 }
 
 // noTrackText returns the localized "No track playing" string.
