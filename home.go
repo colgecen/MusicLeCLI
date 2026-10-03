@@ -127,7 +127,7 @@ func (m *HomeModel) refreshPlaylistOptions() {
 		}
 	}
 	if len(m.playlistOptions) == 0 {
-		m.playlistOptions = []string{"(no playlists)"}
+		m.playlistOptions = []string{Tr("dl.no_playlists")}
 	}
 	if m.playlistIdx >= len(m.playlistOptions) {
 		m.playlistIdx = 0
@@ -609,10 +609,10 @@ func (m *HomeModel) handleImportResult(msg ImportResultMsg) tea.Cmd {
 		if errMsg == "" && msg.Error != nil {
 			errMsg = msg.Error.Error()
 		}
-		m.addLog("error", langT("Import failed: ", "Ice aktarma basarisiz: ")+errMsg)
+		m.addLog("error", "Import failed: "+errMsg)
 		return nil
 	}
-	m.addLog("ok", langT("Imported: ", "Ice Aktarildi: ")+msg.Result.Filename)
+	m.addLog("ok", "Imported: "+msg.Result.Filename)
 	m.refreshAllContent()
 	return nil
 }
@@ -761,7 +761,7 @@ func (m *HomeModel) saveEditModal() (tea.Model, tea.Cmd) {
 		if err == nil && result.Status == "ok" {
 			_ = state.Current.ScanProfiles()
 			m.refreshAllContent()
-			m.addLog("ok", langT("Updated: ", "Guncellendi: ")+song.Title)
+			m.addLog("ok", "Updated: "+song.Title)
 		} else {
 			errMsg := ""
 			if err != nil {
@@ -769,18 +769,18 @@ func (m *HomeModel) saveEditModal() (tea.Model, tea.Cmd) {
 			} else if result != nil {
 				errMsg = result.Error
 			}
-			m.addLog("error", langT("Update failed: ", "Guncelleme basarisiz: ")+errMsg)
+			m.addLog("error", "Update failed: "+errMsg)
 		}
 		return nil
 	}
 }
 
 func (m *HomeModel) renderEditOverlay(full string) string {
-	titleLbl := ui.AccentStyle.Render(" Title ") + "\n" + m.editTitle.View()
-	artistLbl := ui.AccentStyle.Render(" Artist ") + "\n" + m.editArtist.View()
-	durLbl := ui.AccentStyle.Render(" Duration ") + "\n" + m.editDuration.View()
-	content := lipgloss.JoinVertical(lipgloss.Left, titleLbl, "", artistLbl, "", durLbl, "", ui.DimStyle.Render("  [Tab] Next  [Enter] Save  [Esc] Cancel"))
-	content = ui.BorderStyle.Width(50).Render(ui.WhiteStyle.Bold(true).Render(" EDIT SONG ") + "\n" + content)
+	titleLbl := ui.AccentStyle.Render(" "+Tr("home.title")+" ") + "\n" + m.editTitle.View()
+	artistLbl := ui.AccentStyle.Render(" "+Tr("home.artist")+" ") + "\n" + m.editArtist.View()
+	durLbl := ui.AccentStyle.Render(" "+Tr("home.duration")+" ") + "\n" + m.editDuration.View()
+	content := lipgloss.JoinVertical(lipgloss.Left, titleLbl, "", artistLbl, "", durLbl, "", ui.DimStyle.Render(Tr("home.edit_hint")))
+	content = ui.BorderStyle.Width(50).Render(ui.WhiteStyle.Bold(true).Render(Tr("home.edit_title")) + "\n" + content)
 	return m.placeOverlay(full, content)
 }
 
@@ -873,7 +873,7 @@ func (m *HomeModel) executeDelete() (tea.Model, tea.Cmd) {
 		if err == nil && result.Status == "ok" {
 			_ = state.Current.ScanProfiles()
 			m.refreshAllContent()
-			m.addLog("ok", langT("Deleted: ", "Silindi: ")+song.Title)
+			m.addLog("ok", "Deleted: "+song.Title)
 		} else {
 			errMsg := ""
 			if err != nil {
@@ -881,7 +881,7 @@ func (m *HomeModel) executeDelete() (tea.Model, tea.Cmd) {
 			} else if result != nil {
 				errMsg = result.Error
 			}
-			m.addLog("error", langT("Delete failed: ", "Silme basarisiz: ")+errMsg)
+			m.addLog("error", "Delete failed: "+errMsg)
 		}
 		return nil
 	}
@@ -893,7 +893,7 @@ func (m *HomeModel) renderDeleteOverlay(full string) string {
 	if m.deleteSongIdx >= 0 && m.deleteSongIdx < len(songs) {
 		songName = songs[m.deleteSongIdx].Title
 	}
-	msg := ui.WhiteStyle.Render(fmt.Sprintf("  Delete \"%s\"?", songName))
+	msg := ui.WhiteStyle.Render("  " + fmt.Sprintf(Tr("home.del_ask"), songName))
 	purpleBtn := lipgloss.NewStyle().
 		Background(lipgloss.Color("#BB86FC")).
 		Foreground(lipgloss.Color("#FFFFFF")).
@@ -901,16 +901,20 @@ func (m *HomeModel) renderDeleteOverlay(full string) string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#FFFFFF")).
 		Padding(0, 2)
-	noBtn := ui.ButtonStyle.Render("  No  ")
-	yesBtn := ui.ErrorButtonStyle.Render("  Yes  ")
+	yesW := maxTrWidth("home.yes")
+	noW := maxTrWidth("home.no")
+	yesTxt := ui.FitPad(Tr("home.yes"), yesW)
+	noTxt := ui.FitPad(Tr("home.no"), noW)
+	noBtn := ui.ButtonStyle.Render(noTxt)
+	yesBtn := ui.ErrorButtonStyle.Render(yesTxt)
 	if m.deleteYes {
-		yesBtn = purpleBtn.Render("  Yes  ")
+		yesBtn = purpleBtn.Render(yesTxt)
 	} else {
-		noBtn = purpleBtn.Render("  No  ")
+		noBtn = purpleBtn.Render(noTxt)
 	}
 	btns := lipgloss.JoinHorizontal(lipgloss.Left, yesBtn, "  ", noBtn)
 	content := lipgloss.JoinVertical(lipgloss.Center, "", msg, "", btns, "")
-	content = ui.BorderStyle.Width(40).Render(ui.WhiteStyle.Bold(true).Render(" CONFIRM DELETE ") + "\n" + content)
+	content = ui.BorderStyle.Width(40).Render(ui.WhiteStyle.Bold(true).Render(Tr("home.del_title")) + "\n" + content)
 	return m.placeOverlay(full, content)
 }
 
@@ -973,7 +977,7 @@ func (m *HomeModel) saveRename() (tea.Model, tea.Cmd) {
 	}
 	_ = state.Current.ScanProfiles()
 	m.refreshAllContent()
-	m.addLog("ok", langT("Playlist renamed: ", "Playlist yeniden adlandirildi: ")+newName)
+	m.addLog("ok", "Playlist renamed: "+newName)
 	return m, nil
 }
 
@@ -1421,7 +1425,7 @@ func (m *HomeModel) renderConsole(bodyH int) string {
 
 	var inner string
 	if totalLines == 0 {
-		inner = title + "\n" + ui.FaintStyle.Render("  No logs")
+		inner = title + "\n" + ui.FaintStyle.Render("  "+Tr("dl.no_logs"))
 	} else {
 		var contentParts []string
 		for i := start; i < end; i++ {
@@ -1586,7 +1590,7 @@ func (m *HomeModel) viewContent(bodyH, contentW int) string {
 	if m.sectionFocus == 2 || m.focusIdx == 6 {
 		tableTitle = ui.AccentStyle.Bold(true).Render(" " + langT("SONGS", "SARKILAR") + " ")
 	}
-	hint := ui.DimStyle.Render("  < > actions  Enter: exec")
+	hint := ui.DimStyle.Render(Tr("home.songs_hint"))
 	borderStyle := ui.BorderStyle
 	if m.sectionFocus == 2 || m.focusIdx == 6 {
 		borderStyle = ui.AccentBorderStyle
@@ -1619,7 +1623,7 @@ func (m *HomeModel) viewContent(bodyH, contentW int) string {
 func (m *HomeModel) renderSongs(w, offset, max int) string {
 	songs := m.songs()
 	if len(songs) == 0 {
-		return ui.DimStyle.Render("  No songs yet")
+		return ui.DimStyle.Render("  " + Tr("home.no_songs"))
 	}
 
 	if offset >= len(songs) {
@@ -1641,9 +1645,19 @@ func (m *HomeModel) renderSongs(w, offset, max int) string {
 
 	numW := 4
 	durW := 9
-	actionsW := 17
+	// Row action buttons keep the width of their longest translation across
+	// all 11 languages; the actions column grows to fit them.
+	playW := maxTrWidth("home.act_play")
+	editW := maxTrWidth("home.act_edit")
+	delW := maxTrWidth("home.act_del")
+	actionsW := playW + editW + delW + 2
+	if actionsW < 17 {
+		actionsW = 17
+	}
+	narrowActions := false
 	if w < 55 {
 		actionsW = 13
+		narrowActions = true
 	}
 	// Format: " %s %s %s %s %s " (6 spaces + columns)
 	// Overhead = 6 + numW(4) + durW(9) = 19. Border adds 2. Content must be w-2.
@@ -1702,10 +1716,12 @@ func (m *HomeModel) renderSongs(w, offset, max int) string {
 		af := m.songActionFocus
 
 		var playBtn, editBtn, delBtn string
-		if actionsW >= 15 {
-			playBtn = " Play"
-			editBtn = " Edit"
-			delBtn = " Del"
+		actFmt := "%-5s%-5s%-4s"
+		if !narrowActions {
+			playBtn = ui.FitPad(Tr("home.act_play"), playW)
+			editBtn = ui.FitPad(Tr("home.act_edit"), editW)
+			delBtn = ui.FitPad(Tr("home.act_del"), delW)
+			actFmt = fmt.Sprintf("%%-%ds%%-%ds%%-%ds", playW, editW, delW)
 		} else {
 			playBtn = " P"
 			editBtn = " E"
@@ -1727,7 +1743,7 @@ func (m *HomeModel) renderSongs(w, offset, max int) string {
 			delBtn = btnInactiveText.Render(delBtn)
 		}
 
-		line := fmt.Sprintf(" %s %s %s %s %s ", numStr, titleR, artistR, dur, actCol.Render(fmt.Sprintf("%-5s%-5s%-4s", playBtn, editBtn, delBtn)))
+		line := fmt.Sprintf(" %s %s %s %s %s ", numStr, titleR, artistR, dur, actCol.Render(fmt.Sprintf(actFmt, playBtn, editBtn, delBtn)))
 
 		if m.focusIdx == 6 && m.songFocusIdx == i {
 			songStyle := ui.AccentBorderStyle.
@@ -1760,7 +1776,7 @@ func (m *HomeModel) viewPlaylistInfo(bodyH int) string {
 		if pad < 0 {
 			pad = 0
 		}
-		inner := title + "\n" + ui.DimStyle.Render("\n  No playlist selected") + strings.Repeat("\n", pad)
+		inner := title + "\n" + ui.DimStyle.Render("\n  "+Tr("common.no_playlist")) + strings.Repeat("\n", pad)
 		return border.Width(38).Render(inner)
 	}
 
@@ -1816,7 +1832,7 @@ func (m *HomeModel) viewPlaylistInfo(bodyH int) string {
 		totalSecs += parseDuration(s.Duration)
 	}
 	durStr := formatDuration(totalSecs)
-	infoTxt := fmt.Sprintf("%s    %d songs", durStr, len(displayPl.Songs))
+	infoTxt := fmt.Sprintf("%s    "+Tr("home.songs_count"), durStr, len(displayPl.Songs))
 	infoLine := ui.AccentStyle.Render(padCenter(infoTxt, cw))
 
 	// Action buttons (centered). Both keep the width of their longest
@@ -1903,9 +1919,9 @@ func formatDuration(totalSecs int) string {
 	h := totalSecs / 3600
 	m := (totalSecs % 3600) / 60
 	if h > 0 {
-		return fmt.Sprintf("%dh %dm", h, m)
+		return fmt.Sprintf(Tr("home.dur_h"), h, m)
 	}
-	return fmt.Sprintf("%dm", m)
+	return fmt.Sprintf(Tr("home.dur_m"), m)
 }
 
 func padCenter(s string, w int) string {
