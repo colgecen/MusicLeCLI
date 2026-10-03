@@ -49,15 +49,15 @@ func NewPlaylistModel() *PlaylistModel {
 		leftColWidth: 30,
 		plNameInput: func() textinput.Model {
 			ti := textinput.New()
-			ti.Prompt = "  Playlist Name:  "
-			ti.Placeholder = "My Playlist"
+			ti.Prompt = Tr("pl.name_prompt")
+			ti.Placeholder = Tr("pl.name_ph")
 			ti.Width = 60
 			return ti
 		}(),
 		plBioInput: func() textinput.Model {
 			ti := textinput.New()
-			ti.Prompt = "  Description:  "
-			ti.Placeholder = "My favorite songs"
+			ti.Prompt = Tr("pl.desc_prompt")
+			ti.Placeholder = Tr("pl.desc_ph")
 			ti.Width = 60
 			return ti
 		}(),
@@ -114,10 +114,10 @@ func (m *PlaylistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ArtFileSelectedMsg:
 		m.artPath = msg.Path
-		m.playlistStatus = ui.WhiteStyle.Render("  " + langT("Art selected", "Resim secildi"))
+		m.playlistStatus = ui.WhiteStyle.Render("  " + Tr("pl.art_selected"))
 
 	case ArtFileTooLargeMsg:
-		m.playlistStatus = ui.ErrorStyle.Render("  x " + langT("Image must be under 1MB", "Resim 1MB altinda olmali"))
+		m.playlistStatus = ui.ErrorStyle.Render("  x " + Tr("pl.img_size"))
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -172,7 +172,7 @@ func (m *PlaylistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						_ = os.Remove(pl.ArtPath)
 						pl.ArtPath = ""
 						state.Current.CurrentPlaylist.ArtPath = ""
-						m.playlistStatus = ui.AccentStyle.Render("  v " + langT("Image reset", "Resim sifirlandi"))
+						m.playlistStatus = ui.AccentStyle.Render("  v " + Tr("pl.img_reset"))
 						_ = state.Current.ScanProfiles()
 					}
 					m.setFocus(0)
@@ -290,17 +290,17 @@ func (m *PlaylistModel) cancelAddMode() {
 func (m *PlaylistModel) addNewPlaylist() (tea.Model, tea.Cmd) {
 	cp := state.Current.CurrentProfile
 	if cp == nil {
-		m.playlistStatus = ui.ErrorStyle.Render("  x " + langT("No profile", "Profil yok"))
+		m.playlistStatus = ui.ErrorStyle.Render("  x " + Tr("pl.no_profile"))
 		return m, nil
 	}
 	name := strings.TrimSpace(m.plNameInput.Value())
 	if name == "" {
-		m.playlistStatus = ui.ErrorStyle.Render("  x " + langT("Name is required", "İsim gerekli"))
+		m.playlistStatus = ui.ErrorStyle.Render("  x " + Tr("pl.name_required"))
 		return m, nil
 	}
 	for _, pl := range cp.Playlists {
 		if pl.Name == name {
-			m.playlistStatus = ui.ErrorStyle.Render("  x " + langT("Name already exists", "Bu isim zaten var"))
+			m.playlistStatus = ui.ErrorStyle.Render("  x " + Tr("pl.name_exists"))
 			return m, nil
 		}
 	}
@@ -308,7 +308,7 @@ func (m *PlaylistModel) addNewPlaylist() (tea.Model, tea.Cmd) {
 	bio := strings.TrimSpace(m.plBioInput.Value())
 	artSrc := strings.TrimSpace(m.artPath)
 	if err := state.Current.CreatePlaylistStructure(cp.FolderName, folder, name, bio, artSrc); err != nil {
-		m.playlistStatus = ui.ErrorStyle.Render("  x " + err.Error())
+		m.playlistStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 		return m, nil
 	}
 	_ = state.Current.ScanProfiles()
@@ -327,7 +327,7 @@ func (m *PlaylistModel) addNewPlaylist() (tea.Model, tea.Cmd) {
 	}
 	m.addMode = false
 	m.refreshOptions()
-	m.playlistStatus = ui.AccentStyle.Render("  v " + langT("Playlist created!", "Playlist oluşturuldu!"))
+	m.playlistStatus = ui.AccentStyle.Render("  v " + Tr("pl.created"))
 	m.setFocus(0) // return to first button after creation
 	return m, nil
 }
@@ -348,7 +348,7 @@ func (m *PlaylistModel) savePlaylist() (tea.Model, tea.Cmd) {
 	bio := strings.TrimSpace(m.plBioInput.Value())
 	artSrc := strings.TrimSpace(m.artPath)
 	if err := state.Current.SavePlaylistMeta(cp.FolderName, pl.FolderName, name, bio); err != nil {
-		m.playlistStatus = ui.ErrorStyle.Render("  x " + err.Error())
+		m.playlistStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 		return m, nil
 	}
 	if artSrc != "" {
@@ -360,7 +360,7 @@ func (m *PlaylistModel) savePlaylist() (tea.Model, tea.Cmd) {
 		}
 		destPath := filepath.Join(artDir, "avatar"+ext)
 		if err := state.CopyFile(artSrc, destPath); err != nil {
-			m.playlistStatus = ui.ErrorStyle.Render("  x " + err.Error())
+			m.playlistStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 			return m, nil
 		}
 		pl.ArtPath = destPath
@@ -376,16 +376,16 @@ func (m *PlaylistModel) savePlaylist() (tea.Model, tea.Cmd) {
 		}
 	}
 	m.refreshOptions()
-	m.playlistStatus = ui.AccentStyle.Render("  v " + langT("Saved!", "Kaydedildi!"))
+	m.playlistStatus = ui.AccentStyle.Render("  v " + Tr("pl.saved"))
 	return m, nil
 }
 
 func (m *PlaylistModel) openArtDialog() tea.Cmd {
 	return func() tea.Msg {
 		selectedPath, err := zenity.SelectFile(
-			zenity.Title(langT("Select Art Image", "Resim Sec")),
+			zenity.Title(Tr("pl.select_art")),
 			zenity.FileFilter{
-				Name:     langT("Image Files", "Resim Dosyalari"),
+				Name:     Tr("pl.img_files"),
 				Patterns: []string{"*.jpg", "*.jpeg", "*.png"},
 			},
 		)
@@ -432,7 +432,7 @@ func (m *PlaylistModel) deleteCurrentPlaylist() (tea.Model, tea.Cmd) {
 	if m.playlistFocusIdx >= len(m.playlistOptions) {
 		m.playlistFocusIdx = 0
 	}
-	m.playlistStatus = ui.DimStyle.Render("  " + langT("Deleted", "Silindi"))
+	m.playlistStatus = ui.DimStyle.Render("  " + Tr("pl.deleted"))
 	return m, nil
 }
 
@@ -500,7 +500,7 @@ func (m *PlaylistModel) renderLeftPanel(w, maxH int) string {
 
 	var lines []string
 	if total == 0 {
-		lines = append(lines, ui.DimStyle.Render("  "+langT("No playlists", "Playlist yok")))
+		lines = append(lines, ui.DimStyle.Render("  "+Tr("pl.no_playlists")))
 	} else {
 		end := m.playlistOffset + maxVisible
 		if end > total {
@@ -521,7 +521,7 @@ func (m *PlaylistModel) renderLeftPanel(w, maxH int) string {
 		content += strings.Repeat("\n", innerH-contentH)
 	}
 
-	title := ui.SectionTitleStyle.Render(langT(" Playlists", " Playlistler"))
+	title := ui.SectionTitleStyle.Render(Tr("pl.playlists_title"))
 	box := ui.AccentBorderStyle.
 		Width(w).
 		Height(maxH - 2).
@@ -537,25 +537,25 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 		plV = pl.Name
 	}
 
-	titlePrefix := langT(" Playlist", " Playlist")
+	titlePrefix := Tr("pl.playlists_title")
 	if m.addMode {
-		titlePrefix = langT(" New Playlist", " Yeni Playlist")
-		plV = langT("(creating new)", "(yeni oluşturuluyor)")
+		titlePrefix = Tr("pl.new_prefix")
+		plV = Tr("pl.creating_new")
 	}
 
 	artVal := m.artPath
 	if artVal == "" {
-		artVal = langT("(click to select image)", "(dosya secmek icin tikla)")
+		artVal = Tr("pl.click_select")
 	}
 	var artV string
 	if m.focus == 1 {
 		if m.artPath == "" {
-			artV = ui.AccentBorderStyle.Render("  Art Path:  " + ui.DimStyle.Render(artVal))
+			artV = ui.AccentBorderStyle.Render(Tr("pl.art_path") + ui.DimStyle.Render(artVal))
 		} else {
-			artV = ui.AccentBorderStyle.Render("  Art Path:  " + ui.WhiteStyle.Render(artVal))
+			artV = ui.AccentBorderStyle.Render(Tr("pl.art_path") + ui.WhiteStyle.Render(artVal))
 		}
 	} else {
-		artV = "  Art Path:  " + ui.WhiteStyle.Render(artVal)
+		artV = Tr("pl.art_path") + ui.WhiteStyle.Render(artVal)
 	}
 
 	plNameVal := m.plNameInput.Value()
@@ -566,7 +566,7 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 	if m.focus == 2 {
 		plNameV = m.plNameInput.View()
 	} else {
-		plNameV = "  Playlist Name:  " + ui.WhiteStyle.Render(plNameVal)
+		plNameV = Tr("pl.name_prompt") + ui.WhiteStyle.Render(plNameVal)
 	}
 
 	plBioVal := m.plBioInput.Value()
@@ -577,7 +577,7 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 	if m.focus == 3 {
 		plBioV = m.plBioInput.View()
 	} else {
-		plBioV = "  Description:  " + ui.WhiteStyle.Render(plBioVal)
+		plBioV = Tr("pl.desc_prompt") + ui.WhiteStyle.Render(plBioVal)
 	}
 
 	// Button labels keep the width of their longest translation across all
@@ -589,13 +589,13 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 	delW := maxTrWidth("pl.delete_btn")
 	addW := maxTrWidth("pl.add_btn")
 	resetW := maxTrWidth("pl.reset_btn")
-	saveLabel := ui.FitPad(langT("  Save  ", "  Kaydet  "), saveW)
+	saveLabel := ui.FitPad(Tr("pl.save"), saveW)
 	if m.addMode {
-		saveLabel = ui.FitPad(langT("  Create  ", "  Oluştur  "), saveW)
+		saveLabel = ui.FitPad(Tr("pl.create"), saveW)
 	}
-	delLabel := ui.FitPad(langT("  Playlist Sil  ", "  Playlist Sil  "), delW)
-	addLabel := ui.FitPad(langT("  Playlist Ekle  ", "  Playlist Ekle  "), addW)
-	resetLabel := ui.FitPad(langT("  Resmi Sıfırla  ", "  Resmi Sıfırla  "), resetW)
+	delLabel := ui.FitPad(Tr("pl.delete_btn"), delW)
+	addLabel := ui.FitPad(Tr("pl.add_btn"), addW)
+	resetLabel := ui.FitPad(Tr("pl.reset_btn"), resetW)
 	saveBtn := ui.AccentButtonStyle.Render(saveLabel)
 	deleteBtn := ui.ErrorButtonStyle.Render(delLabel)
 	addBtn := ui.ButtonStyle.Render(addLabel)
@@ -619,15 +619,15 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 		"",
 		ui.SectionTitleStyle.Render(" "+titlePrefix+": ")+plV,
 		"",
-		ui.SectionTitleStyle.Render(" Art Image "),
+		ui.SectionTitleStyle.Render(Tr("pl.sec_art")),
 		"",
 		artV,
 		"",
-		ui.SectionTitleStyle.Render(" Playlist Name "),
+		ui.SectionTitleStyle.Render(Tr("pl.sec_name")),
 		"",
 		plNameV,
 		"",
-		ui.SectionTitleStyle.Render(" Description "),
+		ui.SectionTitleStyle.Render(Tr("pl.sec_desc")),
 		"",
 		plBioV,
 		"",
@@ -637,7 +637,7 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 		resetBtn,
 	)
 
-	title := ui.SectionTitleStyle.Render(langT(" Playlist Settings", " Playlist Ayarlari"))
+	title := ui.SectionTitleStyle.Render(Tr("pl.settings_title"))
 	box := ui.AccentBorderStyle.
 		Width(w).
 		Render(title + "\n" + boxContent)
