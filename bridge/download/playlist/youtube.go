@@ -10,9 +10,13 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"MusicLeCLI/bridge/download/music"
 )
+
+// httpClient bounds playlist page fetches (no hanging workers).
+var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 // fetchPlaylistPage wraps music's rate-limited HTTP for YouTube playlist fetches.
 var fetchPlaylistPage = func(playlistID string) (string, error) {
@@ -27,7 +31,7 @@ var fetchPlaylistPage = func(playlistID string) (string, error) {
 	// Use music package's rate limiter via its exported Do function
 	music.WaitYouTube()
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("get playlist: %w", err)
 	}
@@ -245,11 +249,11 @@ const (
 // PlaylistConcurrency controls the number of concurrent downloads in parallel mode.
 var PlaylistConcurrency = defaultConcurrency
 
-// DownloadYouTubePlaylist downloads all tracks in a YouTube playlist (sequential).
-// Each track is saved as "{Artist} - {Title}.mp3" in outputDir.
-// Skips files that already exist (resume-friendly).
+// DownloadYouTubePlaylist downloads all tracks in a YouTube playlist with the
+// default worker pool. Each track is saved as "{Artist} - {Title}.mp3" in
+// outputDir. Skips files that already exist (resume-friendly).
 func DownloadYouTubePlaylist(playlistURL, outputDir string, progress func(pct int, msg string)) ([]string, error) {
-	return DownloadYouTubePlaylistParallel(playlistURL, outputDir, 1, progress)
+	return DownloadYouTubePlaylistParallel(playlistURL, outputDir, PlaylistConcurrency, progress)
 }
 
 // DownloadYouTubePlaylistParallel downloads tracks concurrently with a worker pool.

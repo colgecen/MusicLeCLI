@@ -30,6 +30,10 @@ var (
 	ytdlpOnce sync.Once
 )
 
+// httpClient bounds every pure-Go download request. http.DefaultClient has no
+// timeout, so one stalled connection used to hang a playlist worker forever.
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
 func initRateLimiters() {
 	youtubeRL = newRateLimiter(8, 4)  // 8 req/s, burst 4
 	spotifyRL = newRateLimiter(15, 8) // 15 req/s, burst 8
@@ -60,7 +64,10 @@ func (rl *rateLimiter) Wait() {
 	elapsed := now.Sub(rl.last)
 	rl.last = now
 
-	rl.tokens += elapsed.Seconds() * rl.rate
+	// NOTE: rl.rate is tokens per NANOSECOND, so elapsed must stay in
+	// nanoseconds too (using .Seconds() here under-refilled by 1e9x and
+	// effectively froze the bucket after the initial burst).
+	rl.tokens += float64(elapsed) * rl.rate
 	if rl.tokens > float64(rl.burst) {
 		rl.tokens = float64(rl.burst)
 	}
@@ -70,12 +77,18 @@ func (rl *rateLimiter) Wait() {
 		return
 	}
 
-	// Wait for next token
-	waitDur := time.Duration(float64(time.Second) / rl.rate * (1 - rl.tokens))
+	// Wait for the missing fraction of a token, in nanoseconds.
+	waitDur := time.Duration((1 - rl.tokens) / rl.rate)
+	if waitDur < 0 {
+		waitDur = 0
+	}
+	if waitDur > 30*time.Second {
+		waitDur = 30 * time.Second // safety cap, should never trigger
+	}
 	rl.mu.Unlock()
 	time.Sleep(waitDur)
 	rl.mu.Lock()
-	rl.tokens = float64(rl.burst) - 1
+	rl.tokens = 0
 	rl.last = time.Now()
 }
 
@@ -83,21 +96,21 @@ func (rl *rateLimiter) Wait() {
 func httpGetWithYouTubeRL(urlStr string) (*http.Response, error) {
 	rlOnce.Do(initRateLimiters)
 	youtubeRL.Wait()
-	return http.Get(urlStr)
+	return httpClient.Get(urlStr)
 }
 
 // httpGetWithSpotifyRL performs an HTTP GET with Spotify rate limiting.
 func httpGetWithSpotifyRL(urlStr string) (*http.Response, error) {
 	rlOnce.Do(initRateLimiters)
 	spotifyRL.Wait()
-	return http.Get(urlStr)
+	return httpClient.Get(urlStr)
 }
 
 // httpDoWithYouTubeRL performs an HTTP request with YouTube rate limiting.
 func httpDoWithYouTubeRL(req *http.Request) (*http.Response, error) {
 	rlOnce.Do(initRateLimiters)
 	youtubeRL.Wait()
-	return http.DefaultClient.Do(req)
+	return httpClient.Do(req)
 }
 
 // WaitYouTube blocks until a YouTube API request is allowed (rate limiter).
@@ -193,7 +206,7 @@ func FetchYouTubePage(urlOrID string) (string, error) {
 
 	rlOnce.Do(initRateLimiters)
 	youtubeRL.Wait()
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("http get: %w", err)
 	}
@@ -235,7 +248,7 @@ func DownloadStream(streamURL string, contentLen int64, cb download.ProgressCall
 		req.Header.Set("Referer", "https://www.youtube.com/")
 		req.Header.Set("Origin", "https://www.youtube.com")
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := httpClient.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("http get (attempt %d): %w", attempt+1, err)
 			continue
@@ -379,8 +392,17 @@ func findFFmpeg() string {
 	return ffmpegPath
 }
 
-// DownloadYouTubeTrackWithFallback tries pure-Go parsing first, then falls back to yt-dlp.
+// DownloadYouTubeTrackWithFallback tries yt-dlp first, then falls back to
+// pure-Go parsing. YouTube now gates streams behind challenges the pure-Go
+// parser usually fails late (after tens of seconds), so yt-dlp-first is both
+// faster and far more reliable.
 func DownloadYouTubeTrack(urlOrID string, cb download.ProgressCallback) (*download.TrackInfo, []byte, error) {
+	if track, raw, err := downloadWithYTDLP(urlOrID, cb); err == nil && len(raw) > 64 {
+		return track, raw, nil
+	} else if cb != nil {
+		cb(5, "yt-dlp failed, trying direct parse...")
+	}
+
 	html, err := FetchYouTubePage(urlOrID)
 	if err != nil {
 		return nil, nil, classifyYouTubeError(fmt.Errorf("fetch page: %w", err))
@@ -388,7 +410,6 @@ func DownloadYouTubeTrack(urlOrID string, cb download.ProgressCallback) (*downlo
 
 	pr, parseErr := ParsePlayerResponse(html)
 	if parseErr == nil && pr.Streams != nil && len(pr.Streams) > 0 {
-		// Pure-Go path succeeded
 		if cb != nil {
 			cb(15, fmt.Sprintf("Found %d audio streams", len(pr.Streams)))
 		}
@@ -398,11 +419,7 @@ func DownloadYouTubeTrack(urlOrID string, cb download.ProgressCallback) (*downlo
 		}
 	}
 
-	// Fallback to yt-dlp
-	if cb != nil {
-		cb(5, "Pure Go parser failed, trying yt-dlp...")
-	}
-	return downloadWithYTDLP(urlOrID, cb)
+	return nil, nil, fmt.Errorf("no audio stream available")
 }
 
 func downloadFromStream(pr *ParseResult, stream *StreamInfo, urlOrID string, cb download.ProgressCallback) (*download.TrackInfo, []byte, error) {
@@ -526,7 +543,10 @@ func downloadWithYTDLP(videoID string, cb download.ProgressCallback) (*download.
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
-	dlArgs := append([]string{"-f", "bestaudio", "-o", filepath.Join(tmpDir, "audio.%(ext)s"), "--no-warnings", "--no-playlist"}, ytdlpCookieFlag()...)
+	// Fallback chain instead of strict bestaudio: some clients hide the
+	// audio-only stream, and failing hard there used to burn minutes in
+	// client-rotation retries. m4a audio converts identically via ffmpeg.
+	dlArgs := append([]string{"-f", "bestaudio[ext=webm]/bestaudio[ext=opus]/bestaudio/best", "-o", filepath.Join(tmpDir, "audio.%(ext)s"), "--no-warnings", "--no-playlist", "--socket-timeout", "25", "--retries", "2"}, ytdlpCookieFlag()...)
 	dlArgs = append(dlArgs, watchURL)
 	cmd := exec.CommandContext(ctx, ytdlp, dlArgs...)
 
@@ -657,7 +677,9 @@ func DownloadYouTubeTrackDirectMP3(videoID string, cb download.ProgressCallback)
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
-	dlArgs := append([]string{"-x", "--audio-format", "mp3", "--audio-quality", "0", "-o", tmpMp3Name, "--no-warnings", "--no-playlist"}, ytdlpCookieFlag()...)
+	// -f bestaudio first: without it yt-dlp fetches the full video and only
+	// then extracts audio (10x the bytes for a music track).
+	dlArgs := append([]string{"-f", "bestaudio[ext=webm]/bestaudio[ext=opus]/bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "0", "-o", tmpMp3Name, "--no-warnings", "--no-playlist", "--socket-timeout", "25", "--retries", "2"}, ytdlpCookieFlag()...)
 	dlArgs = append(dlArgs, watchURL)
 	cmd := exec.CommandContext(ctx, ytdlp, dlArgs...)
 

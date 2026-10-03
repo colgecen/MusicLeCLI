@@ -58,9 +58,10 @@ func downloadSpotifyWorker(entry SpotifyPlaylistEntry, outputDir string) (file s
 	return f, nil
 }
 
-// DownloadSpotifyPlaylist downloads a Spotify playlist sequentially.
+// DownloadSpotifyPlaylist downloads a Spotify playlist with the default
+// worker pool. (Sequential mode took hours on large playlists.)
 func DownloadSpotifyPlaylist(playlistURL, outputDir string, progress func(pct int, msg string)) ([]string, error) {
-	return DownloadSpotifyPlaylistParallel(playlistURL, outputDir, 1, progress)
+	return DownloadSpotifyPlaylistParallel(playlistURL, outputDir, PlaylistConcurrency, progress)
 }
 
 // DownloadSpotifyPlaylistParallel downloads a Spotify playlist with a concurrent worker pool.
