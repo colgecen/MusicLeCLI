@@ -83,6 +83,12 @@ func main() {
 		state.Current.IsFirstLaunch = true
 		state.Current.Language = state.LangEnglish
 	} else {
+		// Repair a broken theme value instead of silently keeping default.
+		if _, ok := ui.ThemeColors[state.Current.Theme]; !ok {
+			if _, ok := ui.ParseHexColor(state.Current.Theme); !ok {
+				state.Current.Theme = "green"
+			}
+		}
 		ui.ApplyTheme(state.Current.Theme)
 		ui.SetSpectrumPalette(state.Current.SpectrumPalette)
 		if scanErr := state.Current.ScanProfiles(); scanErr != nil || len(state.Current.Profiles) == 0 {

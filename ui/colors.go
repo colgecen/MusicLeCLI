@@ -12,13 +12,22 @@ import (
 
 // ThemeColors maps theme names to accent hex colors
 var ThemeColors = map[string]string{
-	"green":  "#1DB954",
-	"red":    "#FF4444",
-	"pink":   "#FF69B4",
-	"purple": "#BB86FC",
-	"blue":   "#4488FF",
-	"orange": "#FFA500",
-	"yellow": "#FFD700",
+	"anime":   "#FF3D81",
+	"blue":    "#4488FF",
+	"crimson": "#DC143C",
+	"green":   "#1DB954",
+	"hacker":  "#39FF14",
+	"kitty":   "#FF9ECF",
+	"lime":    "#A6FF00",
+	"neon":    "#00E5FF",
+	"orange":  "#FFA500",
+	"pink":    "#FF69B4",
+	"purple":  "#BB86FC",
+	"red":     "#FF4444",
+	"rose":    "#FF5C8A",
+	"teal":    "#2DD4BF",
+	"violet":  "#8B5CF6",
+	"yellow":  "#FFD700",
 }
 
 var (
@@ -204,14 +213,55 @@ func InitStyles() {
 		Background(lipgloss.Color("#1E3223"))
 }
 
-// ApplyTheme updates ColorAccent and rebuilds all styles
+// ParseHexColor normalizes "#RRGGBB", "RRGGBB", "r,g,b" and "rgb(r,g,b)"
+// into "#RRGGBB". It reports false for anything else.
+func ParseHexColor(s string) (string, bool) {
+	t := strings.TrimSpace(s)
+	if strings.HasPrefix(strings.ToLower(t), "rgb(") && strings.HasSuffix(t, ")") {
+		t = t[4 : len(t)-1]
+	}
+	if strings.HasPrefix(t, "#") {
+		t = t[1:]
+	}
+	if strings.Contains(t, ",") {
+		parts := strings.Split(t, ",")
+		if len(parts) != 3 {
+			return "", false
+		}
+		var rgb [3]int
+		for i, p := range parts {
+			var v int
+			if _, err := fmt.Sscanf(strings.TrimSpace(p), "%d", &v); err != nil || v < 0 || v > 255 {
+				return "", false
+			}
+			rgb[i] = v
+		}
+		return fmt.Sprintf("#%02X%02X%02X", rgb[0], rgb[1], rgb[2]), true
+	}
+	if len(t) != 6 {
+		return "", false
+	}
+	for _, c := range t {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return "", false
+		}
+	}
+	return "#" + strings.ToUpper(t), true
+}
+
+// ApplyTheme updates ColorAccent and rebuilds all styles. It accepts a preset
+// name from ThemeColors or a custom "#RRGGBB" hex (stored as-is in config).
+// Unknown names leave the current theme untouched.
 func ApplyTheme(name string) {
-	hex, ok := ThemeColors[name]
-	if !ok {
+	if hex, ok := ThemeColors[name]; ok {
+		ColorAccent = lipgloss.Color(hex)
+		InitStyles()
 		return
 	}
-	ColorAccent = lipgloss.Color(hex)
-	InitStyles()
+	if hex, ok := ParseHexColor(name); ok {
+		ColorAccent = lipgloss.Color(hex)
+		InitStyles()
+	}
 }
 
 func VolumeColor(vol float64) lipgloss.Color {
