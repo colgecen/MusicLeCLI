@@ -137,6 +137,26 @@ func noTrackText() string {
 	}
 }
 
+// volLabel returns the short volume caption for the player bar.
+func volLabel() string {
+	switch state.Current.Language {
+	case state.LangTurkish:
+		return "SES"
+	case state.LangGerman:
+		return "LAUT"
+	case state.LangArabic:
+		return "صوت"
+	case state.LangChinese:
+		return "音量"
+	case state.LangJapanese:
+		return "音量"
+	case state.LangRussian:
+		return "ЗВУК"
+	default:
+		return "VOL"
+	}
+}
+
 // langBadge returns the uppercase language code (EN, TR, ES, DE, FR, AR,
 // PT, ZH, JA, IT, RU) for the header status pill.
 func langBadge() string {

@@ -111,7 +111,7 @@ func RenderPlayerBar(width int, sectionFocused bool) string {
 	mainContent := fmt.Sprintf("  %s  %s  %s / %s   %s %s",
 		ui.DimStyle.Render(posStr), ui.AccentStyle.Render(progress),
 		ui.DimStyle.Render(posStr), ui.DimStyle.Render(durStr),
-		ui.FaintStyle.Render("VOL"), volStr)
+		ui.FaintStyle.Render(volLabel()), volStr)
 	mainRendered := lipgloss.NewStyle().MaxWidth(mw).Width(mw).Align(lipgloss.Center).Render(strings.TrimSpace(mainContent))
 
 	line2 := fmt.Sprintf("%s%s%s", barStr, mainRendered, metaStr)

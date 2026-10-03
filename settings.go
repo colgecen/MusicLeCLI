@@ -528,10 +528,16 @@ func (m *SettingsModel) renderSoundTab(width int) string {
 	if len(m.soundDevices) == 0 {
 		lines = append(lines, ui.DimStyle.Render("  "+Tr("sound.no_devices")))
 	} else {
+		// Badges share one fixed width (longest translation of either label
+		// across all 11 languages) so device rows never shift.
+		badgeW := maxTrWidth("settings.badge_wired")
+		if w := maxTrWidth("settings.badge_bt"); w > badgeW {
+			badgeW = w
+		}
 		for i, d := range m.soundDevices {
-			badge := ui.DimStyle.Render("[Kablolu]")
+			badge := ui.DimStyle.Render(ui.FitPad(Tr("settings.badge_wired"), badgeW))
 			if d.Type == "bluetooth" {
-				badge = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render("[Bluetooth]")
+				badge = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render(ui.FitPad(Tr("settings.badge_bt"), badgeW))
 			}
 			line := "  " + badge + "  " + d.Description
 			if m.rightFocused && i == m.soundSel {
