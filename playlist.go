@@ -2,24 +2,15 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/ncruces/zenity"
 
 	"MusicLeCLI/state"
 	"MusicLeCLI/ui"
 )
-
-type ArtFileSelectedMsg struct {
-	Path string
-}
-
-type ArtFileTooLargeMsg struct{}
 
 type PlaylistModel struct {
 	width  int
@@ -31,7 +22,6 @@ type PlaylistModel struct {
 	playlistOffset   int
 	playlistOptions  []string
 
-	artPath     string
 	plNameInput textinput.Model
 	plBioInput  textinput.Model
 
@@ -112,25 +102,19 @@ func (m *PlaylistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-	case ArtFileSelectedMsg:
-		m.artPath = msg.Path
-		m.playlistStatus = ui.WhiteStyle.Render("  " + Tr("pl.art_selected"))
-
-	case ArtFileTooLargeMsg:
-		m.playlistStatus = ui.ErrorStyle.Render("  x " + Tr("pl.img_size"))
-
 	case tea.KeyMsg:
+		// Focus map: 0=list, 1=name, 2=bio, 3=save/create, 4=delete, 5=add.
 		switch msg.String() {
 		case "up", "k":
 			if m.focus == 0 {
 				if m.playlistFocusIdx > 0 {
 					m.playlistFocusIdx--
 				}
-			} else if m.focus >= 2 && m.focus <= 3 {
+			} else if m.focus >= 1 && m.focus <= 2 {
 				m.selectAll = false
 				inputs := []*textinput.Model{&m.plNameInput, &m.plBioInput}
 				var cmd tea.Cmd
-				*inputs[m.focus-2], cmd = inputs[m.focus-2].Update(msg)
+				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
 			}
 		case "down", "j":
@@ -138,48 +122,34 @@ func (m *PlaylistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.playlistFocusIdx < len(m.playlistOptions)-1 {
 					m.playlistFocusIdx++
 				}
-			} else if m.focus >= 2 && m.focus <= 3 {
+			} else if m.focus >= 1 && m.focus <= 2 {
 				m.selectAll = false
 				inputs := []*textinput.Model{&m.plNameInput, &m.plBioInput}
 				var cmd tea.Cmd
-				*inputs[m.focus-2], cmd = inputs[m.focus-2].Update(msg)
+				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
 			}
 		case "tab":
 			m.selectAll = false
-			m.setFocus((m.focus + 1) % 8)
+			m.setFocus((m.focus + 1) % 6)
 		case "shift+tab":
 			m.selectAll = false
-			m.setFocus((m.focus - 1 + 8) % 8)
+			m.setFocus((m.focus - 1 + 6) % 6)
 		case "enter":
 			if m.focus == 0 {
 				m.selectPlaylist()
-			} else if m.focus == 1 {
-				return m, m.openArtDialog()
-			} else if m.focus == 4 {
+			} else if m.focus == 3 {
 				if m.addMode {
 					return m.addNewPlaylist()
 				}
 				return m.savePlaylist()
-			} else if m.focus == 5 {
+			} else if m.focus == 4 {
 				return m.deleteCurrentPlaylist()
-			} else if m.focus == 6 {
+			} else if m.focus == 5 {
 				m.enterAddMode()
-			} else if m.focus == 7 {
-				// Reset playlist image
-				if pl := m.selectedPlaylist(); pl != nil {
-					if pl.ArtPath != "" {
-						_ = os.Remove(pl.ArtPath)
-						pl.ArtPath = ""
-						state.Current.CurrentPlaylist.ArtPath = ""
-						m.playlistStatus = ui.AccentStyle.Render("  v " + Tr("pl.img_reset"))
-						_ = state.Current.ScanProfiles()
-					}
-					m.setFocus(0)
-				}
 			}
 		case "delete":
-			if m.focus == 5 {
+			if m.focus == 4 {
 				return m.deleteCurrentPlaylist()
 			}
 		case "esc":
@@ -189,23 +159,23 @@ func (m *PlaylistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.setFocus(0)
 			}
 		case "ctrl+v":
-			if m.focus >= 2 && m.focus <= 3 {
+			if m.focus >= 1 && m.focus <= 2 {
 				inputs := []*textinput.Model{&m.plNameInput, &m.plBioInput}
-				*inputs[m.focus-2], _ = inputs[m.focus-2].Update(textinput.Paste())
+				*inputs[m.focus-1], _ = inputs[m.focus-1].Update(textinput.Paste())
 				return m, nil
 			}
 		case "ctrl+a":
-			if m.focus >= 2 && m.focus <= 3 {
+			if m.focus >= 1 && m.focus <= 2 {
 				inputs := []*textinput.Model{&m.plNameInput, &m.plBioInput}
-				if inputs[m.focus-2].Value() != "" {
+				if inputs[m.focus-1].Value() != "" {
 					m.selectAll = true
 				}
 			}
 			return m, nil
 		default:
-			if m.focus >= 2 && m.focus <= 3 {
+			if m.focus >= 1 && m.focus <= 2 {
 				if m.selectAll {
-					inp := []*textinput.Model{&m.plNameInput, &m.plBioInput}[m.focus-2]
+					inp := []*textinput.Model{&m.plNameInput, &m.plBioInput}[m.focus-1]
 					s := msg.String()
 					if len(s) == 1 || s == "backspace" || s == "delete" {
 						inp.SetValue("")
@@ -217,7 +187,7 @@ func (m *PlaylistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				inputs := []*textinput.Model{&m.plNameInput, &m.plBioInput}
 				var cmd tea.Cmd
-				*inputs[m.focus-2], cmd = inputs[m.focus-2].Update(msg)
+				*inputs[m.focus-1], cmd = inputs[m.focus-1].Update(msg)
 				return m, cmd
 			}
 		}
@@ -226,13 +196,13 @@ func (m *PlaylistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *PlaylistModel) setFocus(idx int) {
-	if idx < 0 || idx >= 8 {
+	if idx < 0 || idx >= 6 {
 		return
 	}
 	m.focus = idx
 	inputs := []*textinput.Model{&m.plNameInput, &m.plBioInput}
 	for i, inp := range inputs {
-		if i+2 == idx {
+		if i+1 == idx {
 			inp.Focus()
 		} else {
 			inp.Blur()
@@ -242,7 +212,7 @@ func (m *PlaylistModel) setFocus(idx int) {
 
 func (m *PlaylistModel) cycleFocus() bool {
 	if m.focus == 0 {
-		m.setFocus(4)
+		m.setFocus(3)
 	} else {
 		if m.addMode {
 			m.cancelAddMode()
@@ -266,11 +236,10 @@ func (m *PlaylistModel) selectPlaylist() {
 
 func (m *PlaylistModel) enterAddMode() {
 	m.addMode = true
-	m.artPath = ""
 	m.plNameInput.SetValue("")
 	m.plBioInput.SetValue("")
 	m.playlistStatus = ""
-	m.setFocus(2)
+	m.setFocus(1)
 }
 
 func (m *PlaylistModel) cancelAddMode() {
@@ -281,7 +250,6 @@ func (m *PlaylistModel) cancelAddMode() {
 		m.plNameInput.SetCursor(len(pl.Name))
 		m.plBioInput.SetValue(pl.Bio)
 		m.plBioInput.SetCursor(len(pl.Bio))
-		m.artPath = ""
 	}
 	m.playlistStatus = ""
 	m.setFocus(0)
@@ -306,8 +274,7 @@ func (m *PlaylistModel) addNewPlaylist() (tea.Model, tea.Cmd) {
 	}
 	folder := strings.ToLower(strings.ReplaceAll(name, " ", "_"))
 	bio := strings.TrimSpace(m.plBioInput.Value())
-	artSrc := strings.TrimSpace(m.artPath)
-	if err := state.Current.CreatePlaylistStructure(cp.FolderName, folder, name, bio, artSrc); err != nil {
+	if err := state.Current.CreatePlaylistStructure(cp.FolderName, folder, name, bio, ""); err != nil {
 		m.playlistStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 		return m, nil
 	}
@@ -346,24 +313,9 @@ func (m *PlaylistModel) savePlaylist() (tea.Model, tea.Cmd) {
 		name = pl.FolderName
 	}
 	bio := strings.TrimSpace(m.plBioInput.Value())
-	artSrc := strings.TrimSpace(m.artPath)
 	if err := state.Current.SavePlaylistMeta(cp.FolderName, pl.FolderName, name, bio); err != nil {
 		m.playlistStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 		return m, nil
-	}
-	if artSrc != "" {
-		plDir := state.Current.PlaylistDir(cp.FolderName, pl.FolderName)
-		artDir := filepath.Join(plDir, "playlist_avatar")
-		ext := ".jpg"
-		if strings.HasSuffix(strings.ToLower(artSrc), ".png") {
-			ext = ".png"
-		}
-		destPath := filepath.Join(artDir, "avatar"+ext)
-		if err := state.CopyFile(artSrc, destPath); err != nil {
-			m.playlistStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
-			return m, nil
-		}
-		pl.ArtPath = destPath
 	}
 	_ = state.Current.ScanProfiles()
 	for i, p := range state.Current.Profiles {
@@ -378,29 +330,6 @@ func (m *PlaylistModel) savePlaylist() (tea.Model, tea.Cmd) {
 	m.refreshOptions()
 	m.playlistStatus = ui.AccentStyle.Render("  v " + Tr("pl.saved"))
 	return m, nil
-}
-
-func (m *PlaylistModel) openArtDialog() tea.Cmd {
-	return func() tea.Msg {
-		selectedPath, err := zenity.SelectFile(
-			zenity.Title(Tr("pl.select_art")),
-			zenity.FileFilter{
-				Name:     Tr("pl.img_files"),
-				Patterns: []string{"*.jpg", "*.jpeg", "*.png"},
-			},
-		)
-		if err != nil || selectedPath == "" {
-			return nil
-		}
-		info, err := os.Stat(selectedPath)
-		if err != nil {
-			return nil
-		}
-		if info.Size() > 1024*1024 {
-			return ArtFileTooLargeMsg{}
-		}
-		return ArtFileSelectedMsg{Path: selectedPath}
-	}
 }
 
 func (m *PlaylistModel) deleteCurrentPlaylist() (tea.Model, tea.Cmd) {
@@ -543,27 +472,12 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 		plV = Tr("pl.creating_new")
 	}
 
-	artVal := m.artPath
-	if artVal == "" {
-		artVal = Tr("pl.click_select")
-	}
-	var artV string
-	if m.focus == 1 {
-		if m.artPath == "" {
-			artV = ui.AccentBorderStyle.Render(Tr("pl.art_path") + ui.DimStyle.Render(artVal))
-		} else {
-			artV = ui.AccentBorderStyle.Render(Tr("pl.art_path") + ui.WhiteStyle.Render(artVal))
-		}
-	} else {
-		artV = Tr("pl.art_path") + ui.WhiteStyle.Render(artVal)
-	}
-
 	plNameVal := m.plNameInput.Value()
 	if plNameVal == "" && !m.addMode {
 		plNameVal = m.plNameInput.Placeholder
 	}
 	var plNameV string
-	if m.focus == 2 {
+	if m.focus == 1 {
 		plNameV = m.plNameInput.View()
 	} else {
 		plNameV = Tr("pl.name_prompt") + ui.WhiteStyle.Render(plNameVal)
@@ -574,7 +488,7 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 		plBioVal = m.plBioInput.Placeholder
 	}
 	var plBioV string
-	if m.focus == 3 {
+	if m.focus == 2 {
 		plBioV = m.plBioInput.View()
 	} else {
 		plBioV = Tr("pl.desc_prompt") + ui.WhiteStyle.Render(plBioVal)
@@ -588,40 +502,29 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 	}
 	delW := maxTrWidth("pl.delete_btn")
 	addW := maxTrWidth("pl.add_btn")
-	resetW := maxTrWidth("pl.reset_btn")
 	saveLabel := ui.FitPad(Tr("pl.save"), saveW)
 	if m.addMode {
 		saveLabel = ui.FitPad(Tr("pl.create"), saveW)
 	}
 	delLabel := ui.FitPad(Tr("pl.delete_btn"), delW)
 	addLabel := ui.FitPad(Tr("pl.add_btn"), addW)
-	resetLabel := ui.FitPad(Tr("pl.reset_btn"), resetW)
 	saveBtn := ui.AccentButtonStyle.Render(saveLabel)
 	deleteBtn := ui.ErrorButtonStyle.Render(delLabel)
 	addBtn := ui.ButtonStyle.Render(addLabel)
-	resetBtn := ui.ButtonStyle.Render(resetLabel)
 
-	if m.focus == 4 {
+	if m.focus == 3 {
 		saveBtn = ui.FocusedButtonStyle.Render(saveLabel)
 	}
-	if m.focus == 5 {
+	if m.focus == 4 {
 		deleteBtn = ui.FocusedButtonStyle.Render(delLabel)
 	}
-	if m.focus == 6 {
+	if m.focus == 5 {
 		addBtn = ui.FocusedButtonStyle.Render(addLabel)
-	}
-	// Reset image button (focus index 7)
-	if m.focus == 7 {
-		resetBtn = ui.FocusedButtonStyle.Render(resetLabel)
 	}
 
 	boxContent := lipgloss.JoinVertical(lipgloss.Left,
 		"",
 		ui.SectionTitleStyle.Render(" "+titlePrefix+": ")+plV,
-		"",
-		ui.SectionTitleStyle.Render(Tr("pl.sec_art")),
-		"",
-		artV,
 		"",
 		ui.SectionTitleStyle.Render(Tr("pl.sec_name")),
 		"",
@@ -634,7 +537,6 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 		m.playlistStatus,
 		"",
 		lipgloss.JoinHorizontal(lipgloss.Left, saveBtn, "  ", deleteBtn, "  ", addBtn),
-		resetBtn,
 	)
 
 	title := ui.SectionTitleStyle.Render(Tr("pl.settings_title"))
