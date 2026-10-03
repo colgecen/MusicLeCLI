@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -46,6 +47,11 @@ type SettingsModel struct {
 	langIdx  int
 	themeIdx int
 
+	// Custom-theme hex editor state (last row of the Theme tab).
+	editingCustom bool
+	customHex      textinput.Model
+	customErr      string
+
 	// activeTab is the index into settingsTabs that is currently shown.
 	activeTab int
 	// rightFocused is true while the right panel (selection list) has focus.
@@ -80,6 +86,18 @@ func NewSettingsModel() *SettingsModel {
 			break
 		}
 	}
+	// A saved custom hex lands on the Custom row.
+	if _, ok := ui.ThemeColors[state.Current.Theme]; !ok {
+		if _, ok := ui.ParseHexColor(state.Current.Theme); ok {
+			m.themeIdx = len(themeNames)
+		}
+	}
+	hexInput := textinput.New()
+	hexInput.Placeholder = "RRGGBB"
+	hexInput.Prompt = "# "
+	hexInput.Width = 20
+	hexInput.CharLimit = 18
+	m.customHex = hexInput
 	m.volLimit = state.Current.SoundVolumeLimit
 	if m.volLimit <= 0 || m.volLimit > 100 {
 		m.volLimit = 100
@@ -127,8 +145,49 @@ func (m *SettingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			switch msg.String() {
 			case "esc", "tab", "shift+tab":
+				if m.editingCustom {
+					m.editingCustom = false
+					m.customHex.Blur()
+					m.customErr = ""
+					if msg.String() != "esc" {
+						m.rightFocused = false
+					}
+					return m, nil
+				}
 				m.rightFocused = false
 				return m, nil
+			}
+			// Custom hex editor (last row of the Theme tab) captures keys.
+			if m.editingCustom && settingsTabs[m.activeTab].id == "tab.theme" {
+				switch msg.String() {
+				case "enter":
+					if hex, ok := ui.ParseHexColor(m.customHex.Value()); ok {
+						m.editingCustom = false
+						m.customHex.Blur()
+						m.customErr = ""
+						state.Current.Theme = hex
+						_ = state.Current.SaveConfig()
+						ui.ApplyTheme(hex)
+						return m, func() tea.Msg { return ThemeChangedMsg{} }
+					}
+					m.customErr = Tr("theme.invalid")
+					return m, nil
+				case "up", "k":
+					m.editingCustom = false
+					m.customHex.Blur()
+					m.customErr = ""
+					m.moveSelection(-1)
+					return m, nil
+				case "down", "j":
+					m.editingCustom = false
+					m.customHex.Blur()
+					m.customErr = ""
+					m.moveSelection(1)
+					return m, nil
+				}
+				var cmd tea.Cmd
+				m.customHex, cmd = m.customHex.Update(msg)
+				return m, cmd
 			}
 			// The Sound tab mixes a device list (up/down) with a volume-limit
 			// slider (left/right), so it needs its own key map.
@@ -194,11 +253,16 @@ func (m *SettingsModel) hasSelectionList() bool {
 	return false
 }
 
+// themeRowCount is the preset count plus the trailing Custom row.
+func themeRowCount() int { return len(themeNames) + 1 }
+
 // moveSelection shifts the highlighted item of the active tab's list.
 func (m *SettingsModel) moveSelection(dir int) {
+	m.editingCustom = false
+	m.customErr = ""
 	switch settingsTabs[m.activeTab].id {
 	case "tab.theme":
-		n := len(themeNames)
+		n := themeRowCount()
 		if n == 0 {
 			return
 		}
@@ -244,6 +308,18 @@ func (m *SettingsModel) applyActiveTab() tea.Cmd {
 		state.Current.Language = langs[m.langIdx]
 		_ = state.Current.SaveConfig()
 	case "tab.theme":
+		if m.themeIdx >= len(themeNames) {
+			// Custom row: open the hex editor.
+			m.editingCustom = true
+			m.customErr = ""
+			if hex, ok := ui.ParseHexColor(state.Current.Theme); ok {
+				m.customHex.SetValue(strings.TrimPrefix(hex, "#"))
+			} else {
+				m.customHex.SetValue("")
+			}
+			m.customHex.Focus()
+			return nil
+		}
 		theme := themeNames[m.themeIdx]
 		state.Current.Theme = theme
 		_ = state.Current.SaveConfig()
@@ -283,6 +359,9 @@ func (m *SettingsModel) applyActiveTab() tea.Cmd {
 func (m *SettingsModel) cycleTab() {
 	m.activeTab = (m.activeTab + 1) % len(settingsTabs)
 	m.scroll = 0 // reset long-text scroll when switching tabs
+	m.editingCustom = false
+	m.customHex.Blur()
+	m.customErr = ""
 }
 
 // cycleFocus exists for MainModel F1 player-bar focus cycling compatibility.
@@ -455,9 +534,29 @@ func (m *SettingsModel) renderThemeTab(width int) string {
 		}
 		lines = append(lines, line)
 	}
-	lines = append(lines, "")
-	lines = append(lines, "")
-	lines = append(lines, ui.DimStyle.Render("  "+Tr("settings.select_hint")))
+	// Trailing Custom row: current custom hex as its sample.
+	customHex, isCustom := ui.ParseHexColor(state.Current.Theme)
+	customSample := ui.DimStyle.Render("###")
+	customName := Tr("theme.custom")
+	if isCustom {
+		customSample = lipgloss.NewStyle().Foreground(lipgloss.Color(customHex)).Render("###")
+		customName += "  " + ui.DimStyle.Render(customHex)
+	}
+	customLine := "  " + customSample + "  " + customName
+	if m.rightFocused && m.themeIdx == len(themeNames) {
+		customLine = ui.AccentStyle.Bold(true).Render("> ") + customSample + "  " + ui.WhiteStyle.Bold(true).Render(customName)
+	}
+	lines = append(lines, customLine)
+	if m.editingCustom {
+		lines = append(lines, "", "  "+m.customHex.View())
+		lines = append(lines, ui.DimStyle.Render("  "+Tr("theme.hex_hint")))
+		if m.customErr != "" {
+			lines = append(lines, ui.ErrorStyle.Render("  "+m.customErr))
+		}
+	} else {
+		lines = append(lines, "")
+		lines = append(lines, ui.DimStyle.Render("  "+Tr("settings.select_hint")))
+	}
 	return strings.Join(lines, "\n")
 }
 
