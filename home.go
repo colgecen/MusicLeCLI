@@ -1806,7 +1806,7 @@ func (m *HomeModel) viewPlaylistInfo(bodyH int) string {
 	cw := 36
 	created := ""
 	if displayPl.CreatedAt != "" {
-		txt := langT("Created: "+displayPl.CreatedAt, "Oluþturma: "+displayPl.CreatedAt)
+		txt := Tr("home.created") + displayPl.CreatedAt
 		created = ui.DimStyle.Render(padCenter(txt, cw))
 	}
 
@@ -1822,13 +1822,13 @@ func (m *HomeModel) viewPlaylistInfo(bodyH int) string {
 	// Action buttons (centered)
 	playFocused := m.sectionFocus == 1 && m.playlistActionFocus == 1
 	shufFocused := m.sectionFocus == 1 && m.playlistActionFocus == 2
-	playBtn := ui.DimStyle.Render("> Play All")
-	shufBtn := ui.DimStyle.Render("# Shuffle")
+	playBtn := ui.DimStyle.Render(Tr("home.play_all"))
+	shufBtn := ui.DimStyle.Render(Tr("home.shuffle"))
 	if playFocused {
-		playBtn = ui.AccentStyle.Render("> Play All")
+		playBtn = ui.AccentStyle.Render(Tr("home.play_all"))
 	}
 	if shufFocused {
-		shufBtn = ui.AccentStyle.Render("# Shuffle")
+		shufBtn = ui.AccentStyle.Render(Tr("home.shuffle"))
 	}
 	btnTxt := lipgloss.JoinHorizontal(lipgloss.Center, playBtn, "     ", shufBtn)
 	btnLine := padCenter(btnTxt, cw)
