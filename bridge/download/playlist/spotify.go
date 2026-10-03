@@ -37,7 +37,7 @@ func FetchSpotifyPlaylist(playlistURL string) (name string, entries []SpotifyPla
 // downloadSpotifyWorker handles one Spotify track: search YouTube, download, convert, save.
 func downloadSpotifyWorker(entry SpotifyPlaylistEntry, outputDir string) (file string, err error) {
 	query := entry.Artist + " - " + entry.Title
-	videoID, _, sErr := music.SearchYouTubeTrack(query)
+	videoID, ytInfo, sErr := music.SearchYouTubeTrack(query)
 	if sErr != nil {
 		return "", fmt.Errorf("search failed: %w", sErr)
 	}
@@ -50,6 +50,16 @@ func downloadSpotifyWorker(entry SpotifyPlaylistEntry, outputDir string) (file s
 	entry.TrackInfo.StreamURL = "https://www.youtube.com/watch?v=" + videoID
 	entry.TrackInfo.Format = "webm"
 	entry.TrackInfo.ContentLen = int64(len(rawAudio))
+	// Carry artwork so the cover gets embedded in the MP3. Spotify
+	// metadata has no artwork of its own; fall back to the standard
+	// YouTube thumbnail since search enrichment is sometimes title-only.
+	var ytThumb string
+	if ytInfo != nil {
+		ytThumb = ytInfo.Thumbnail
+	}
+	if entry.TrackInfo.Thumbnail == "" {
+		entry.TrackInfo.Thumbnail = music.VideoThumbnail(videoID, ytThumb)
+	}
 
 	f, sErr := music.SaveRawAsMP3(rawAudio, &entry.TrackInfo, outputDir, nil)
 	if sErr != nil {

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 )
 
 // ID3v2.3 tag writer — pure Go, no dependencies.
@@ -239,7 +240,7 @@ func writeAPICFrame(mimeType string, picType byte, description string, imgData [
 
 // fetchImage downloads an image from a URL. Max 1 MB.
 func fetchImage(url string) ([]byte, string, error) {
-	client := &http.Client{}
+	client := &http.Client{Timeout: 20 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, "", err

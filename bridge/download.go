@@ -306,7 +306,7 @@ func downloadSpotify(url, outputDir string) *Result {
 	CurrentDownload.Set(true, 10, "Downloading from YouTube...")
 
 	// Try direct MP3 download via yt-dlp + ffmpeg first (most reliable)
-	_, mp3Data, err := music.DownloadYouTubeTrackDirectMP3(videoID, func(pct int, msg string) {
+	ytTrack, mp3Data, err := music.DownloadYouTubeTrackDirectMP3(videoID, func(pct int, msg string) {
 		CurrentDownload.Set(true, 10+float64(pct)*80/100, msg)
 	})
 	if err == nil && mp3Data != nil {
@@ -315,6 +315,15 @@ func downloadSpotify(url, outputDir string) *Result {
 		spTrack.StreamURL = "https://www.youtube.com/watch?v=" + videoID
 		spTrack.Format = "mp3"
 		spTrack.ContentLen = int64(len(mp3Data))
+		// Carry artwork so the cover gets embedded (search enrichment is
+		// sometimes title-only, hence the hqdefault fallback).
+		if spTrack.Thumbnail == "" {
+			ytThumb := ""
+			if ytTrack != nil {
+				ytThumb = ytTrack.Thumbnail
+			}
+			spTrack.Thumbnail = music.VideoThumbnail(videoID, ytThumb)
+		}
 
 		tagged, err := music.SaveRawAsMP3(mp3Data, spTrack, outputDir, func(pct int, msg string) {
 			CurrentDownload.Set(true, 90+float64(pct)*10/100, msg)
@@ -338,7 +347,7 @@ func downloadSpotify(url, outputDir string) *Result {
 
 	// Fallback: download raw WebM and convert
 	CurrentDownload.Set(true, 10, "Direct MP3 failed, trying raw download...")
-	_, rawAudio, err := music.DownloadYouTubeTrack(videoID, func(pct int, msg string) {
+	ytTrack, rawAudio, err := music.DownloadYouTubeTrack(videoID, func(pct int, msg string) {
 		CurrentDownload.Set(true, 10+float64(pct)*30/100, msg)
 	})
 	if err != nil {
@@ -351,6 +360,13 @@ func downloadSpotify(url, outputDir string) *Result {
 	spTrack.StreamURL = "https://www.youtube.com/watch?v=" + videoID
 	spTrack.Format = "webm"
 	spTrack.ContentLen = int64(len(rawAudio))
+	if spTrack.Thumbnail == "" {
+		ytThumb := ""
+		if ytTrack != nil {
+			ytThumb = ytTrack.Thumbnail
+		}
+		spTrack.Thumbnail = music.VideoThumbnail(videoID, ytThumb)
+	}
 
 	filePath, err := music.SaveRawAsMP3(rawAudio, spTrack, outputDir, func(pct int, msg string) {
 		CurrentDownload.Set(true, 40+float64(pct)*60/100, msg)

@@ -889,6 +889,17 @@ func enrichSearchResult(r *YouTubeSearchResult) error {
 	return fmt.Errorf("could not extract video metadata")
 }
 
+// VideoThumbnail returns thumb when non-empty, else the standard YouTube
+// thumbnail URL for videoID. The search enricher only fills Thumbnail when
+// the full player JSON parses; hqdefault.jpg exists for virtually every
+// video, so it is a reliable fallback for cover embedding.
+func VideoThumbnail(videoID, thumb string) string {
+	if thumb != "" {
+		return thumb
+	}
+	return "https://i.ytimg.com/vi/" + videoID + "/hqdefault.jpg"
+}
+
 // SearchYouTubeTrack searches for a track on YouTube and returns the best match.
 // Uses YouTube Data API if YOUTUBE_API_KEY is set, otherwise scrapes HTML.
 func SearchYouTubeTrack(query string) (videoID string, info *download.TrackInfo, err error) {
