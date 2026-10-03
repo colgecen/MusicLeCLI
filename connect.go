@@ -210,7 +210,7 @@ func (m *ConnectModel) View() string {
 // modal can be overlaid centered on top of it.
 func (m *ConnectModel) renderBase() string {
 	title := lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true).
-		Render("Tarayıcı Bağlayıcı — bir platform seçin   •   F1 ile geçiş   •   Enter ile onayla")
+		Render(Tr("connect.title"))
 
 	cardW := (m.width - 10) / 2
 	if cardW < 24 {
@@ -227,7 +227,7 @@ func (m *ConnectModel) renderBase() string {
 	row := lipgloss.JoinHorizontal(lipgloss.Top, spotify, "    ", yt)
 
 	footer := lipgloss.NewStyle().Foreground(ui.ColorSecondary).Render(
-		"Spotify veya YouTube Music sekmesini tarayıcıda açık tutun.")
+		Tr("connect.footer"))
 
 	content := lipgloss.JoinVertical(lipgloss.Center, title, "", row, "", footer)
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
@@ -254,11 +254,11 @@ func (m *ConnectModel) renderErrorModal(err error) string {
 	content := lipgloss.JoinVertical(lipgloss.Center,
 		header,
 		"",
-		lipgloss.NewStyle().Foreground(ui.ColorError).Bold(true).Render("Bağlantı hatası"),
+		lipgloss.NewStyle().Foreground(ui.ColorError).Bold(true).Render(Tr("connect.conn_error")),
 		"",
 		lipgloss.NewStyle().Foreground(ui.ColorSecondary).Width(innerW).Align(lipgloss.Center).Render(err.Error()),
 		"",
-		lipgloss.NewStyle().Foreground(ui.ColorSecondary).Render("Esc ile kapat"),
+		lipgloss.NewStyle().Foreground(ui.ColorSecondary).Render(Tr("connect.esc_close")),
 	)
 	return box.Render(content)
 }
@@ -273,9 +273,9 @@ func (m *ConnectModel) renderModal() string {
 		Padding(1, 4).
 		Align(lipgloss.Center)
 	content := lipgloss.JoinVertical(lipgloss.Center,
-		lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true).Render("Tarayıcı bilgisi alınıyor..."),
+		lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true).Render(Tr("connect.fetching")),
 		"",
-		lipgloss.NewStyle().Foreground(ui.ColorAccent).Render(spin+" "+string(m.chosen)+" taranıyor..."),
+		lipgloss.NewStyle().Foreground(ui.ColorAccent).Render(spin+" "+string(m.chosen)+" "+Tr("connect.scanning")),
 	)
 	return box.Render(content)
 }
@@ -285,7 +285,7 @@ func (m *ConnectModel) renderModal() string {
 // unconfirmed row so playlists can be approved sequentially.
 func (m *ConnectModel) renderPlaylistList() string {
 	header := lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true).
-		Render(fmt.Sprintf("%s — %d playlist bulundu", m.chosen, len(m.playlists)))
+		Render(fmt.Sprintf(Tr("connect.found"), m.chosen, len(m.playlists)))
 
 	var rows []string
 	for i, pl := range m.playlists {
@@ -295,22 +295,22 @@ func (m *ConnectModel) renderPlaylistList() string {
 		}
 		name := cursor + pl.Name
 		count := lipgloss.NewStyle().Foreground(ui.ColorSecondary).
-			Render(fmt.Sprintf("(%d şarkı)", pl.TrackCount))
+			Render(fmt.Sprintf(Tr("connect.songs_count"), pl.TrackCount))
 
 		var action string
 		switch {
 		case m.confirmed[i]:
-			action = lipgloss.NewStyle().Foreground(ui.ColorSuccess).Render("[Onaylandı]")
+			action = lipgloss.NewStyle().Foreground(ui.ColorSuccess).Render(Tr("connect.confirmed"))
 		case i == m.plFocus:
-			action = ui.AccentButtonStyle.Render(" Onayla ")
+			action = ui.AccentButtonStyle.Render(Tr("connect.confirm"))
 		default:
-			action = ui.ButtonStyle.Render(" Onayla ")
+			action = ui.ButtonStyle.Render(Tr("connect.confirm"))
 		}
 		row := lipgloss.JoinHorizontal(lipgloss.Center, name, "   ", count, "   ", action)
 		rows = append(rows, row)
 	}
 	if len(rows) == 0 {
-		rows = append(rows, lipgloss.NewStyle().Foreground(ui.ColorSecondary).Render("(playlist bulunamadı)"))
+		rows = append(rows, lipgloss.NewStyle().Foreground(ui.ColorSecondary).Render(Tr("connect.no_playlist_found")))
 	}
 
 	body := strings.Join(rows, "\n")
@@ -319,13 +319,13 @@ func (m *ConnectModel) renderPlaylistList() string {
 	switch {
 	case m.saveErr != nil:
 		footer = lipgloss.NewStyle().Foreground(ui.ColorError).
-			Render(fmt.Sprintf("Kayıt hatası: %v", m.saveErr))
+			Render(fmt.Sprintf(Tr("connect.save_error"), m.saveErr))
 	case m.saved:
 		footer = lipgloss.NewStyle().Foreground(ui.ColorSuccess).
-			Render("Kaydedildi ✓  •  Enter/Esc ile ana ekrana dön")
+			Render(Tr("connect.saved"))
 	default:
 		footer = lipgloss.NewStyle().Foreground(ui.ColorSecondary).
-			Render("↑/↓ ile gezin  •  Enter ile onayla  •  Esc ile geri")
+			Render(Tr("connect.nav_hint"))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Center, header, "", body, "", footer)
