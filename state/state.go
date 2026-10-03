@@ -15,35 +15,44 @@ import (
 type Language string
 
 const (
-	LangEnglish Language = "en"
-	LangTurkish Language = "tr"
-	LangRussian Language = "ru"
-	LangSpanish Language = "es"
-	LangItalian Language = "it"
-	LangArabic  Language = "ar"
-	LangChinese Language = "zh"
-	LangFrench  Language = "fr"
+	LangEnglish    Language = "en"
+	LangTurkish    Language = "tr"
+	LangSpanish    Language = "es"
+	LangGerman     Language = "de"
+	LangFrench     Language = "fr"
+	LangArabic     Language = "ar"
+	LangPortuguese Language = "pt"
+	LangChinese    Language = "zh"
+	LangJapanese   Language = "ja"
+	LangItalian    Language = "it"
+	LangRussian    Language = "ru"
 )
 
-// LanguageNames returns the endonym (native name) for each language code.
+// LanguageEndonym returns the endonym (native name) for each language code.
 func LanguageEndonym(lang Language) string {
 	switch lang {
 	case LangEnglish:
 		return "English"
 	case LangTurkish:
 		return "Türkçe"
-	case LangRussian:
-		return "Русский"
 	case LangSpanish:
 		return "Español"
-	case LangItalian:
-		return "Italiano"
-	case LangArabic:
-		return "العربية"
-	case LangChinese:
-		return "中文"
+	case LangGerman:
+		return "Deutsch"
 	case LangFrench:
 		return "Français"
+	case LangArabic:
+		return "العربية"
+	case LangPortuguese:
+		return "Português"
+	case LangChinese:
+		return "中文"
+	case LangJapanese:
+		return "日本語"
+	case LangItalian:
+		return "Italiano"
+	case LangRussian:
+		return "Русский"
 	}
 	return "English"
 }
@@ -51,14 +60,17 @@ func LanguageEndonym(lang Language) string {
 // AllLanguages returns every supported language in display order.
 func AllLanguages() []Language {
 	return []Language{
-		LangEnglish,
 		LangTurkish,
-		LangRussian,
+		LangEnglish,
 		LangSpanish,
-		LangItalian,
-		LangArabic,
-		LangChinese,
+		LangGerman,
 		LangFrench,
+		LangArabic,
+		LangPortuguese,
+		LangChinese,
+		LangJapanese,
+		LangItalian,
+		LangRussian,
 	}
 }
 
