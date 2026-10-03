@@ -44,14 +44,30 @@ func TestApplyThemeHexAndPreset(t *testing.T) {
 	if string(ColorAccent) != "#00E5FF" {
 		t.Fatalf("hex tema sonrasi Accent = %v", ColorAccent)
 	}
+	if string(ColorBorder) == "#282828" || string(ColorSelection) == "#1E3223" {
+		t.Fatalf("hex tema turetilmemis: Border=%v Selection=%v", ColorBorder, ColorSelection)
+	}
 	ApplyTheme("hacker")
 	if string(ColorAccent) != ThemeColors["hacker"] {
 		t.Fatalf("preset sonrasi Accent = %v", ColorAccent)
 	}
-	before := ColorAccent
+	beforeAccent, beforeBorder := ColorAccent, ColorBorder
 	ApplyTheme("boyle-bir-renk-yok")
-	if ColorAccent != before {
-		t.Fatalf("gecersiz tema degistirmemeliydi: %v", ColorAccent)
+	if ColorAccent != beforeAccent || ColorBorder != beforeBorder {
+		t.Fatalf("gecersiz tema degistirmemeliydi: %v %v", ColorAccent, ColorBorder)
+	}
+	ApplyTheme("green")
+}
+
+func TestMixHex(t *testing.T) {
+	if got := mixHex("#000000", "#FFFFFF", 0.5); got != "#808080" {
+		t.Errorf("mixHex orta = %v", got)
+	}
+	if got := mixHex("#FF0000", "#0000FF", 0); got != "#FF0000" {
+		t.Errorf("mixHex t=0 = %v", got)
+	}
+	if got := mixHex("bozuk", "#FFFFFF", 0.5); got != "#FFFFFF" {
+		t.Errorf("mixHex bozuk girdi = %v", got)
 	}
 }
 

@@ -1645,7 +1645,7 @@ func (m *HomeModel) renderSongs(w, offset, max int) string {
 		end = len(songs)
 	}
 
-	selectedBg := lipgloss.Color("#1E3223")
+	selectedBg := ui.ColorSelection
 	titleStyle := ui.WhiteStyle.Bold(true)
 	artistStyle := ui.DimStyle
 	headerStyle := ui.DimStyle.Bold(true)
@@ -1694,7 +1694,7 @@ func (m *HomeModel) renderSongs(w, offset, max int) string {
 	h := headerStyle.Render(fmt.Sprintf(" %s %s %s %s %s ", hNum, hTitle, hArtist, hDur, hAct))
 	headerBorder := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#888888")).
+		BorderForeground(ui.ColorBorder).
 		Width(w)
 	items := []string{headerBorder.Render(h)}
 

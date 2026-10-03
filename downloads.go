@@ -911,7 +911,7 @@ func (m *DownloadsModel) renderConsole(bodyH int) string {
 			}
 			msgStyled := levelTxt + levelStyle.Render(entry.message)
 
-			selBg := lipgloss.NewStyle().Background(lipgloss.Color("#3B3B5C"))
+			selBg := lipgloss.NewStyle().Background(ui.ColorSelection)
 			cursorStyle := lipgloss.NewStyle().Background(ui.ColorAccent).Foreground(lipgloss.Color("#000000"))
 			isCursor := isConsoleFocused && i == m.consoleCursorPos
 			loLn := m.consoleSelStart

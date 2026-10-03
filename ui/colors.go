@@ -42,6 +42,7 @@ var (
 	ColorSuccess    = lipgloss.Color("#1DB954")
 	ColorRowHover   = lipgloss.Color("#1ED760")
 	ColorBlack      = lipgloss.Color("#000000")
+	ColorSelection  = lipgloss.Color("#1E3223")
 
 	// Brand colors for the browser connector — fixed, independent of theme.
 	ColorSpotify      = lipgloss.Color("#1DB954") // Spotify green
@@ -131,7 +132,7 @@ func InitStyles() {
 		Padding(0, 1)
 
 	SelectedRowStyle = lipgloss.NewStyle().
-		Background(lipgloss.Color("#1E3223")).
+		Background(ColorSelection).
 		Foreground(ColorPrimary).
 		Bold(true)
 
@@ -210,7 +211,42 @@ func InitStyles() {
 		Align(lipgloss.Right)
 
 	SelectedBgStyle = lipgloss.NewStyle().
-		Background(lipgloss.Color("#1E3223"))
+		Background(ColorSelection)
+}
+
+// hexToRGB parses "#RRGGBB" into channels. ok is false for anything else.
+func hexToRGB(h string) (r, g, b int, ok bool) {
+	if len(h) != 7 || h[0] != '#' {
+		return 0, 0, 0, false
+	}
+	var v uint
+	if _, err := fmt.Sscanf(h[1:], "%06x", &v); err != nil {
+		return 0, 0, 0, false
+	}
+	return int(v >> 16), int((v >> 8) & 0xff), int(v & 0xff), true
+}
+
+// mixHex blends two "#RRGGBB" colors; t=0 gives a, t=1 gives b.
+func mixHex(a, b string, t float64) string {
+	ar, ag, ab, ok := hexToRGB(a)
+	if !ok {
+		return b
+	}
+	br, bg, bb, ok := hexToRGB(b)
+	if !ok {
+		return a
+	}
+	m := func(x, y int) int {
+		v := float64(x) + (float64(y)-float64(x))*t
+		if v < 0 {
+			v = 0
+		}
+		if v > 255 {
+			v = 255
+		}
+		return int(v + 0.5)
+	}
+	return fmt.Sprintf("#%02X%02X%02X", m(ar, br), m(ag, bg), m(ab, bb))
 }
 
 // ParseHexColor normalizes "#RRGGBB", "RRGGBB", "r,g,b" and "rgb(r,g,b)"
@@ -249,19 +285,28 @@ func ParseHexColor(s string) (string, bool) {
 	return "#" + strings.ToUpper(t), true
 }
 
-// ApplyTheme updates ColorAccent and rebuilds all styles. It accepts a preset
-// name from ThemeColors or a custom "#RRGGBB" hex (stored as-is in config).
-// Unknown names leave the current theme untouched.
+// ApplyTheme updates the full palette from the accent color and rebuilds
+// all styles. It accepts a preset name from ThemeColors or a custom
+// "#RRGGBB" hex (stored as-is in config). Borders, surfaces, selection,
+// muted text and success all derive from the accent, so the whole UI —
+// not just the borders — follows the theme. Error red and brand colors
+// stay fixed. Unknown names leave the current theme untouched.
 func ApplyTheme(name string) {
-	if hex, ok := ThemeColors[name]; ok {
-		ColorAccent = lipgloss.Color(hex)
-		InitStyles()
-		return
+	hex, ok := ThemeColors[name]
+	if !ok {
+		if h, ok := ParseHexColor(name); ok {
+			hex = h
+		} else {
+			return
+		}
 	}
-	if hex, ok := ParseHexColor(name); ok {
-		ColorAccent = lipgloss.Color(hex)
-		InitStyles()
-	}
+	ColorAccent = lipgloss.Color(hex)
+	ColorBorder = lipgloss.Color(mixHex("#3A3A3A", hex, 0.30))
+	ColorSurface = lipgloss.Color(mixHex("#0C0C0C", hex, 0.08))
+	ColorSelection = lipgloss.Color(mixHex("#000000", hex, 0.25))
+	ColorSecondary = lipgloss.Color(mixHex("#B3B3B3", hex, 0.15))
+	ColorSuccess = lipgloss.Color(mixHex("#22C55E", hex, 0.45))
+	InitStyles()
 }
 
 func VolumeColor(vol float64) lipgloss.Color {
