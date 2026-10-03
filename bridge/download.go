@@ -264,17 +264,20 @@ func downloadSpotify(url, outputDir string) *Result {
 
 	CurrentDownload.Set(true, 0, "Starting...")
 
-	if res, ok := runEngine(url, outputDir); ok {
-		return res
-	}
-
 	urlLower := strings.ToLower(url)
 	isPlaylist := strings.Contains(urlLower, "/playlist/") || strings.Contains(urlLower, "spotify:playlist:")
 	isAlbum := strings.Contains(urlLower, "/album/") || strings.Contains(urlLower, "spotify:album:")
 	isTrack := strings.Contains(urlLower, "/track/") || strings.Contains(urlLower, "spotify:track:")
 
 	if isPlaylist || isAlbum {
+		// Collections are handled by the legacy pipeline by design (the
+		// embedded engine resolves single tracks only). Skip the engine
+		// attempt so a normal playlist path never flashes "Engine error".
 		return downloadSpotifyPlaylist(url, outputDir)
+	}
+
+	if res, ok := runEngine(url, outputDir); ok {
+		return res
 	}
 
 	if !isTrack {
@@ -364,12 +367,10 @@ func downloadSpotify(url, outputDir string) *Result {
 	}
 }
 
-// downloadSpotifyPlaylist also routes through the embedded engine first.
+// downloadSpotifyPlaylist goes straight to the legacy API-free collection
+// scraper. The embedded engine resolves single tracks only, so attempting it
+// here would only produce a bogus "Engine error" for a normal path.
 func downloadSpotifyPlaylist(spotifyURL, outputDir string) *Result {
-	if res, ok := runEngine(spotifyURL, outputDir); ok {
-		return res
-	}
-
 	files, err := playlist.DownloadSpotifyPlaylist(spotifyURL, outputDir, func(pct int, msg string) {
 		CurrentDownload.Set(true, float64(pct), msg)
 	})

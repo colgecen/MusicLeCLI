@@ -27,7 +27,7 @@ func DownloadSpotify(opt SpotifyOptions) error {
 	}
 	inputs := sanitizeSpotifyInputs(opt.URLs)
 	if len(inputs) == 0 {
-		return fmt.Errorf("spotify: en az bir URL veya arama sorgusu gerekli")
+		return fmt.Errorf("spotify: at least one URL or search query is required")
 	}
 	for _, in := range inputs {
 		query, err := spotifyQueryFor(in)
