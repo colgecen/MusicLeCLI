@@ -44,8 +44,8 @@ func TestApplyThemeHexAndPreset(t *testing.T) {
 	if string(ColorAccent) != "#00E5FF" {
 		t.Fatalf("hex tema sonrasi Accent = %v", ColorAccent)
 	}
-	if string(ColorBorder) == "#282828" || string(ColorSelection) == "#1E3223" {
-		t.Fatalf("hex tema turetilmemis: Border=%v Selection=%v", ColorBorder, ColorSelection)
+	if string(ColorBorder) != "#282828" || string(ColorSelection) == "#1E3223" {
+		t.Fatalf("tema paleti yanlis: Border=%v Selection=%v", ColorBorder, ColorSelection)
 	}
 	ApplyTheme("hacker")
 	if string(ColorAccent) != ThemeColors["hacker"] {
