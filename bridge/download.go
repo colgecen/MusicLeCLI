@@ -54,13 +54,15 @@ func downloadYouTube(url, outputDir string) *Result {
 
 	meta := extractMetadata(filePath)
 	if meta.Status == "error" {
-		return &Result{
+		meta = &Result{
 			Status:   "ok",
 			Filename: filepath.Base(filePath),
 			Title:    strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)),
 			Artist:   "Unknown",
 		}
 	}
+	// Register so the track shows up in the playlist (song_list.txt).
+	registerSong(outputDir, filePath, meta)
 	return meta
 }
 
@@ -323,13 +325,15 @@ func downloadSpotify(url, outputDir string) *Result {
 		}
 
 		CurrentDownload.Set(false, 100, "Done")
-		return &Result{
+		res := &Result{
 			Status:   "ok",
 			Filename: filepath.Base(tagged),
 			Title:    spTrack.Title,
 			Artist:   spTrack.Artist,
 			Duration: spTrack.DurationSec,
 		}
+		registerSong(outputDir, tagged, res)
+		return res
 	}
 
 	// Fallback: download raw WebM and convert
@@ -356,16 +360,18 @@ func downloadSpotify(url, outputDir string) *Result {
 		return &Result{Status: "error", Error: fmt.Sprintf("convert: %v", err)}
 	}
 
-	CurrentDownload.Set(false, 100, "Done")
+		CurrentDownload.Set(false, 100, "Done")
 
-	return &Result{
-		Status:   "ok",
-		Filename: filepath.Base(filePath),
-		Title:    spTrack.Title,
-		Artist:   spTrack.Artist,
-		Duration: spTrack.DurationSec,
+		res := &Result{
+			Status:   "ok",
+			Filename: filepath.Base(filePath),
+			Title:    spTrack.Title,
+			Artist:   spTrack.Artist,
+			Duration: spTrack.DurationSec,
+		}
+		registerSong(outputDir, filePath, res)
+		return res
 	}
-}
 
 // downloadSpotifyPlaylist goes straight to the legacy API-free collection
 // scraper. The embedded engine resolves single tracks only, so attempting it
@@ -386,7 +392,12 @@ func downloadSpotifyPlaylist(spotifyURL, outputDir string) *Result {
 		meta := extractMetadata(f)
 		if meta.Status == "ok" {
 			songs = append(songs, *meta)
+		} else {
+			meta = resultFromFile(f)
 		}
+		// Register every downloaded file so tracks show up in the
+		// playlist (song_list.txt). registerSong skips duplicates.
+		registerSong(outputDir, f, meta)
 	}
 
 	return &Result{
