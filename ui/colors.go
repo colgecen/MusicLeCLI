@@ -301,7 +301,10 @@ func ApplyTheme(name string) {
 		}
 	}
 	ColorAccent = lipgloss.Color(hex)
-	ColorBorder = lipgloss.Color(mixHex("#3A3A3A", hex, 0.30))
+	// Borders stay subtle like before (near-invisible dark gray with only
+	// a hint of the theme); saturated borders looked heavy, especially
+	// on unfocused panels.
+	ColorBorder = lipgloss.Color(mixHex("#282828", hex, 0.12))
 	ColorSurface = lipgloss.Color(mixHex("#0C0C0C", hex, 0.08))
 	ColorSelection = lipgloss.Color(mixHex("#000000", hex, 0.25))
 	ColorSecondary = lipgloss.Color(mixHex("#B3B3B3", hex, 0.15))
