@@ -113,6 +113,10 @@ func NewMainModel() *MainModel {
 		connect:       NewConnectModel(),
 		ready:         true,
 		showLangModal: state.Current.IsFirstLaunch,
+		lang:          state.LangTurkish,
+	}
+	if len(state.AllLanguages()) > 0 && state.Current.Language != "" {
+		m.lang = state.Current.Language
 	}
 	return m
 }
@@ -151,19 +155,23 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		if m.showLangModal {
+			cycleLang := func(dir int) {
+				langs := state.AllLanguages()
+				idx := 0
+				for i, l := range langs {
+					if l == m.lang {
+						idx = i
+						break
+					}
+				}
+				idx = (idx + dir + len(langs)) % len(langs)
+				m.lang = langs[idx]
+			}
 			switch msg.String() {
 			case "up", "k":
-				if m.lang == state.LangEnglish {
-					m.lang = state.LangTurkish
-				} else {
-					m.lang = state.LangEnglish
-				}
+				cycleLang(-1)
 			case "down", "j":
-				if m.lang == state.LangEnglish {
-					m.lang = state.LangTurkish
-				} else {
-					m.lang = state.LangEnglish
-				}
+				cycleLang(1)
 			case "enter":
 				return m, initializeDefaults(m.lang)
 			}

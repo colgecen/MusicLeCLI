@@ -13,25 +13,39 @@ import (
 )
 
 func renderLangModal(lang state.Language) string {
-	langOpts := ""
-	if lang == state.LangEnglish {
-		langOpts = ui.AccentStyle.Render("> English") + "\n  Turkce"
-	} else {
-		langOpts = "  English\n" + ui.AccentStyle.Render("> Turkce")
+	langs := state.AllLanguages()
+	var rows []string
+	for _, l := range langs {
+		name := state.LanguageEndonym(l)
+		if l == lang {
+			rows = append(rows, ui.AccentStyle.Render("> "+name))
+		} else {
+			rows = append(rows, "  "+name)
+		}
 	}
+	langOpts := strings.Join(rows, "\n")
+
+	// Title/hint in the currently highlighted language so the user sees
+	// immediate feedback while cycling.
+	saved := state.Current.Language
+	state.Current.Language = lang
+	hintTitle := Tr("setup.lang_title")
+	hintKeys := Tr("setup.hint")
+	welcome := Tr("setup.welcome")
+	state.Current.Language = saved
 
 	content := lipgloss.JoinVertical(lipgloss.Center,
 		"",
 		renderLogo(),
 		"",
-		ui.WhiteStyle.Bold(true).Render("Language / Dil:"),
+		ui.WhiteStyle.Bold(true).Render(hintTitle),
 		"",
 		"  "+langOpts,
 		"",
-		ui.DimStyle.Render("[^v] Change  [Enter] Confirm"),
+		ui.DimStyle.Render(hintKeys),
 	)
 
-	title := ui.WhiteStyle.Render("  " + ui.LogoStyle.Render("Music") + ui.LogoAccentStyle.Render("Le") + "  " + langT("Welcome", "Hos Geldiniz"))
+	title := ui.WhiteStyle.Render("  " + ui.LogoStyle.Render("Music") + ui.LogoAccentStyle.Render("Le") + "  " + welcome)
 	box := ui.AccentBorderStyle.
 		Width(46).
 		Render(title + "\n" + content)
