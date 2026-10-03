@@ -1819,16 +1819,20 @@ func (m *HomeModel) viewPlaylistInfo(bodyH int) string {
 	infoTxt := fmt.Sprintf("%s    %d songs", durStr, len(displayPl.Songs))
 	infoLine := ui.AccentStyle.Render(padCenter(infoTxt, cw))
 
-	// Action buttons (centered)
+	// Action buttons (centered). Both keep the width of their longest
+	// translation across all 11 languages, so language switches never
+	// move them inside the 36-column card.
+	playTxt := ui.FitPad(Tr("home.play_all"), maxTrWidth("home.play_all"))
+	shufTxt := ui.FitPad(Tr("home.shuffle"), maxTrWidth("home.shuffle"))
 	playFocused := m.sectionFocus == 1 && m.playlistActionFocus == 1
 	shufFocused := m.sectionFocus == 1 && m.playlistActionFocus == 2
-	playBtn := ui.DimStyle.Render(Tr("home.play_all"))
-	shufBtn := ui.DimStyle.Render(Tr("home.shuffle"))
+	playBtn := ui.DimStyle.Render(playTxt)
+	shufBtn := ui.DimStyle.Render(shufTxt)
 	if playFocused {
-		playBtn = ui.AccentStyle.Render(Tr("home.play_all"))
+		playBtn = ui.AccentStyle.Render(playTxt)
 	}
 	if shufFocused {
-		shufBtn = ui.AccentStyle.Render(Tr("home.shuffle"))
+		shufBtn = ui.AccentStyle.Render(shufTxt)
 	}
 	btnTxt := lipgloss.JoinHorizontal(lipgloss.Center, playBtn, "     ", shufBtn)
 	btnLine := padCenter(btnTxt, cw)

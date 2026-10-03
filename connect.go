@@ -297,14 +297,22 @@ func (m *ConnectModel) renderPlaylistList() string {
 		count := lipgloss.NewStyle().Foreground(ui.ColorSecondary).
 			Render(fmt.Sprintf(Tr("connect.songs_count"), pl.TrackCount))
 
+		// Both states share one fixed width (longest translation of either
+		// label across all 11 languages) so rows never shift on confirm.
+		actW := maxTrWidth("connect.confirm")
+		if w := maxTrWidth("connect.confirmed"); w > actW {
+			actW = w
+		}
+		confirmTxt := ui.FitPad(Tr("connect.confirm"), actW)
+		confirmedTxt := ui.FitPad(Tr("connect.confirmed"), actW)
 		var action string
 		switch {
 		case m.confirmed[i]:
-			action = lipgloss.NewStyle().Foreground(ui.ColorSuccess).Render(Tr("connect.confirmed"))
+			action = lipgloss.NewStyle().Foreground(ui.ColorSuccess).Render(confirmedTxt)
 		case i == m.plFocus:
-			action = ui.AccentButtonStyle.Render(Tr("connect.confirm"))
+			action = ui.AccentButtonStyle.Render(confirmTxt)
 		default:
-			action = ui.ButtonStyle.Render(Tr("connect.confirm"))
+			action = ui.ButtonStyle.Render(confirmTxt)
 		}
 		row := lipgloss.JoinHorizontal(lipgloss.Center, name, "   ", count, "   ", action)
 		rows = append(rows, row)

@@ -1,6 +1,40 @@
 package main
 
-import "MusicLeCLI/state"
+import (
+	"MusicLeCLI/state"
+	"MusicLeCLI/ui"
+)
+
+// TrFor returns the translation for key in the given language (English
+// fallback, then the raw key). Unlike Tr it never reads the active language,
+// so it can measure strings of every language for fixed-size layouts.
+func TrFor(lang state.Language, key string) string {
+	if m, ok := allTranslations[key]; ok {
+		if t, ok := m[lang]; ok && t != "" {
+			return t
+		}
+		if t, ok := m[state.LangEnglish]; ok && t != "" {
+			return t
+		}
+	}
+	if v, ok := enFallback[key]; ok {
+		return v
+	}
+	return key
+}
+
+// maxTrWidth returns the widest translation of key across all 11 languages,
+// measured in display cells. Use it to size buttons/boxes once so switching
+// language never moves them.
+func maxTrWidth(key string) int {
+	max := 0
+	for _, l := range state.AllLanguages() {
+		if w := ui.TextWidth(TrFor(l, key)); w > max {
+			max = w
+		}
+	}
+	return max
+}
 
 // Tr returns the translation for key in the current language.
 func Tr(key string) string {

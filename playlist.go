@@ -580,27 +580,39 @@ func (m *PlaylistModel) renderRightPanel(w int) string {
 		plBioV = "  Description:  " + ui.WhiteStyle.Render(plBioVal)
 	}
 
-	saveLabel := langT("  Save  ", "  Kaydet  ")
-	if m.addMode {
-		saveLabel = langT("  Create  ", "  Oluştur  ")
+	// Button labels keep the width of their longest translation across all
+	// 11 languages, so the row never shifts when the language changes.
+	saveW := maxTrWidth("pl.save")
+	if w := maxTrWidth("pl.create"); w > saveW {
+		saveW = w
 	}
+	delW := maxTrWidth("pl.delete_btn")
+	addW := maxTrWidth("pl.add_btn")
+	resetW := maxTrWidth("pl.reset_btn")
+	saveLabel := ui.FitPad(langT("  Save  ", "  Kaydet  "), saveW)
+	if m.addMode {
+		saveLabel = ui.FitPad(langT("  Create  ", "  Oluştur  "), saveW)
+	}
+	delLabel := ui.FitPad(langT("  Playlist Sil  ", "  Playlist Sil  "), delW)
+	addLabel := ui.FitPad(langT("  Playlist Ekle  ", "  Playlist Ekle  "), addW)
+	resetLabel := ui.FitPad(langT("  Resmi Sıfırla  ", "  Resmi Sıfırla  "), resetW)
 	saveBtn := ui.AccentButtonStyle.Render(saveLabel)
-	deleteBtn := ui.ErrorButtonStyle.Render(langT("  Playlist Sil  ", "  Playlist Sil  "))
-	addBtn := ui.ButtonStyle.Render(langT("  Playlist Ekle  ", "  Playlist Ekle  "))
-	resetBtn := ui.ButtonStyle.Render(langT("  Resmi Sıfırla  ", "  Resmi Sıfırla  "))
+	deleteBtn := ui.ErrorButtonStyle.Render(delLabel)
+	addBtn := ui.ButtonStyle.Render(addLabel)
+	resetBtn := ui.ButtonStyle.Render(resetLabel)
 
 	if m.focus == 4 {
 		saveBtn = ui.FocusedButtonStyle.Render(saveLabel)
 	}
 	if m.focus == 5 {
-		deleteBtn = ui.FocusedButtonStyle.Render(langT("  Playlist Sil  ", "  Playlist Sil  "))
+		deleteBtn = ui.FocusedButtonStyle.Render(delLabel)
 	}
 	if m.focus == 6 {
-		addBtn = ui.FocusedButtonStyle.Render(langT("  Playlist Ekle  ", "  Playlist Ekle  "))
+		addBtn = ui.FocusedButtonStyle.Render(addLabel)
 	}
 	// Reset image button (focus index 7)
 	if m.focus == 7 {
-		resetBtn = ui.FocusedButtonStyle.Render(langT("  Resmi Sıfırla  ", "  Resmi Sıfırla  "))
+		resetBtn = ui.FocusedButtonStyle.Render(resetLabel)
 	}
 
 	boxContent := lipgloss.JoinVertical(lipgloss.Left,

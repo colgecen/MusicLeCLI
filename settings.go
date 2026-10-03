@@ -339,12 +339,14 @@ func (m *SettingsModel) View() string {
 // renderLeftPanel builds the vertically centered list of tab buttons.
 // Buttons are spread evenly: equal gaps above, below, and between every button.
 func (m *SettingsModel) renderLeftPanel(width int, height int) string {
-	// Widest localized label (e.g. "Politikalar") — every button pads to this.
+	// Widest label across ALL 11 languages — every button pads to this, so
+	// switching language never moves or resizes the buttons.
 	maxW := 0
 	for i := range settingsTabs {
-		w := lipgloss.Width(m.tabLabel(i))
-		if w > maxW {
-			maxW = w
+		for _, l := range state.AllLanguages() {
+			if w := lipgloss.Width(TrFor(l, settingsTabs[i].id)); w > maxW {
+				maxW = w
+			}
 		}
 	}
 	innerW := maxW + settingsBtnPadH*2
@@ -362,7 +364,7 @@ func (m *SettingsModel) renderLeftPanel(width int, height int) string {
 
 	var btns []string
 	for i := range settingsTabs {
-		label := centerPad(m.tabLabel(i), innerW)
+		label := centerPad(ui.FitLabel(m.tabLabel(i), innerW), innerW)
 		if i == m.activeTab {
 			btns = append(btns, activeBtnStyle.Render(label))
 		} else {
