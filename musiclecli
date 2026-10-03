@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# musicle — MusicleCLI interaktif derleme aracı
+# musiclecli — MusicleCLI interaktif derleme aracı
 #
 # Kullanim:
-#   ./musicle                    -> interaktif menü (OS sec -> format sec -> derle)
-#   ./musicle --list             -> tüm derleme seceneklerini listele
-#   ./musicle linux appimage     -> direkt derle (argümanli, menüsüz)
-#   ./musicle windows exe-zip
-#   ./musicle macos targz
-#   ./musicle --install          -> ~/.local/bin'e sembolik bag kur,
-#                                    sonra her klasörden `musicle` yazman yeterli
-#   ./musicle --help             -> yardim
+#   ./musiclecli                    -> interaktif menü (OS sec -> format sec -> derle)
+#   ./musiclecli --list             -> tüm derleme seceneklerini listele
+#   ./musiclecli linux appimage     -> direkt derle (argümanli, menüsüz)
+#   ./musiclecli windows exe-zip
+#   ./musiclecli macos targz
+#   ./musiclecli --install          -> ~/.local/bin'e sembolik bag kur,
+#                                    sonra her klasörden `musiclecli` yazman yeterli
+#   ./musiclecli --help             -> yardim
 #
 # Gecerli hedefler:
 #   linux   : appimage | rpm | targz | binary
@@ -30,7 +30,7 @@ fi
 
 banner() {
   echo "=============================================="
-  echo "  MusicLeCLI — musicle derleme araci  v$VERSION"
+  echo "  MusicLeCLI — musiclecli derleme araci  v$VERSION"
   echo "=============================================="
 }
 
@@ -38,11 +38,11 @@ usage() {
   banner
   echo
   echo "Kullanim:"
-  echo "  ./musicle                     Interaktif menü"
-  echo "  ./musicle <os> <format>       Direkt derle"
-  echo "  ./musicle --list              Secenekleri listele"
-  echo "  ./musicle --install           Komutu sisteme kur (her yerden 'musicle')"
-  echo "  ./musicle --help              Bu yardim"
+  echo "  ./musiclecli                     Interaktif menü"
+  echo "  ./musiclecli <os> <format>       Direkt derle"
+  echo "  ./musiclecli --list              Secenekleri listele"
+  echo "  ./musiclecli --install           Komutu sisteme kur (her yerden 'musiclecli')"
+  echo "  ./musiclecli --help              Bu yardim"
   echo
   echo "Hedefler:"
   echo "  linux   : appimage | rpm | targz | binary"
@@ -50,9 +50,9 @@ usage() {
   echo "  macos   : targz | binary"
   echo
   echo "Ornekler:"
-  echo "  ./musicle linux appimage"
-  echo "  ./musicle windows exe-zip"
-  echo "  VERSION=1.4.0 ./musicle linux targz"
+  echo "  ./musiclecli linux appimage"
+  echo "  ./musiclecli windows exe-zip"
+  echo "  VERSION=1.4.0 ./musiclecli linux targz"
 }
 
 list_targets() {
@@ -64,10 +64,10 @@ list_targets() {
 do_install() {
   local bindir="$HOME/.local/bin"
   mkdir -p "$bindir"
-  ln -sf "$ROOT/musicle" "$bindir/musicle"
-  echo "Kuruldu: $bindir/musicle -> $ROOT/musicle"
+  ln -sf "$ROOT/musiclecli" "$bindir/musiclecli"
+  echo "Kuruldu: $bindir/musiclecli -> $ROOT/musiclecli"
   case ":$PATH:" in
-    *":$bindir:"*) echo "PATH zaten '$bindir' iceriyor. Artik her klasorden 'musicle' yazabilirsin." ;;
+    *":$bindir:"*) echo "PATH zaten '$bindir' iceriyor. Artik her klasorden 'musiclecli' yazabilirsin." ;;
     *)
       echo "NOT: '$bindir' PATH'te yok. Su satiri ~/.bashrc'ye ekle:"
       echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
@@ -358,23 +358,23 @@ case "${1:-}" in
     do_install
     ;;
   --version|-v)
-    echo "musicle $VERSION"
+    echo "musiclecli $VERSION"
     ;;
   linux|windows|macos|darwin)
     if [ $# -lt 2 ]; then
-      echo "Format eksik. Ornek: ./musicle $1 <format>"
+      echo "Format eksik. Ornek: ./musiclecli $1 <format>"
       list_targets
       exit 1
     fi
     OS="$1"; FMT="$2"
-    # 3. argüman olarak version verilebilir: ./musicle linux appimage 1.4.0
+    # 3. argüman olarak version verilebilir: ./musiclecli linux appimage 1.4.0
     if [ $# -ge 3 ]; then
       VERSION="$3"
     fi
     build_target "$OS" "$FMT"
     ;;
   *)
-    # VERSION=... ./musicle 1.4.0  seklinde sürümle çağrı ya da hatalı kullanım
+    # VERSION=... ./musiclecli 1.4.0  seklinde sürümle çağrı ya da hatalı kullanım
     echo "Bilinmeyen komut: $1"
     echo
     usage
