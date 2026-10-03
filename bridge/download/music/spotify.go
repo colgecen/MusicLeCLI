@@ -93,6 +93,10 @@ type nextDataEntity struct {
 		Name string `json:"name"`
 		URI  string `json:"uri"`
 	} `json:"artists"`
+	Authors []struct {
+		Name string `json:"name"`
+		URI  string `json:"uri"`
+	} `json:"authors"`
 	Album *struct {
 		Name   string `json:"name"`
 		Images []struct {
@@ -107,14 +111,24 @@ type nextDataEntity struct {
 			MaxWidth  int    `json:"maxWidth"`
 		} `json:"image"`
 	} `json:"visualIdentity"`
-	Items     []nextDataPlaylistItem `json:"items"`
-	TrackList *struct {
-		Items []nextDataPlaylistItem `json:"items"`
-	} `json:"trackList"`
+	Items []nextDataPlaylistItem `json:"items"`
+	// TrackList changed shape over time: older pages serve
+	// {"items": [{track: {...}}]}, newer ones a flat array of
+	// {title, subtitle, duration, uri}. RawMessage keeps both parseable
+	// (a fixed struct would hard-fail json.Unmarshal on the other shape).
+	TrackList json.RawMessage `json:"trackList"`
 }
 
 type nextDataPlaylistItem struct {
 	Track *nextDataEntity `json:"track"`
+}
+
+// nextDataFlatItem is one entry of the newer flat trackList array.
+type nextDataFlatItem struct {
+	Title    string `json:"title"`
+	Subtitle string `json:"subtitle"`
+	Duration int    `json:"duration"`
+	URI      string `json:"uri"`
 }
 
 type nextDataState struct {
@@ -128,13 +142,42 @@ func extractTracksFromEntity(e *nextDataEntity) ([]download.TrackInfo, string) {
 	collectionArtist := ""
 	if len(e.Artists) > 0 {
 		collectionArtist = e.Artists[0].Name
+	} else if len(e.Authors) > 0 {
+		collectionArtist = e.Authors[0].Name
+	}
+
+	// Newer flat shape: "trackList": [{title, subtitle, duration, uri}, ...]
+	if len(e.TrackList) > 0 {
+		var obj struct {
+			Items []nextDataPlaylistItem `json:"items"`
+		}
+		if json.Unmarshal(e.TrackList, &obj) == nil && len(obj.Items) > 0 {
+			e.Items = obj.Items
+		} else {
+			var flat []nextDataFlatItem
+			if json.Unmarshal(e.TrackList, &flat) == nil && len(flat) > 0 {
+				for _, f := range flat {
+					if f.Title == "" {
+						continue
+					}
+					artist := f.Subtitle
+					if artist == "" {
+						artist = collectionArtist
+					}
+					tracks = append(tracks, download.TrackInfo{
+						Title:       htmlUnescape(f.Title),
+						Artist:      htmlUnescape(artist),
+						DurationSec: float64(f.Duration) / 1000.0,
+					})
+				}
+				return tracks, collectionArtist
+			}
+		}
 	}
 
 	var items []nextDataPlaylistItem
 	if len(e.Items) > 0 {
 		items = e.Items
-	} else if e.TrackList != nil && len(e.TrackList.Items) > 0 {
-		items = e.TrackList.Items
 	}
 
 	for _, item := range items {
