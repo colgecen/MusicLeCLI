@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -14,6 +15,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/dhowden/tag"
+	_ "golang.org/x/image/webp"
 
 	"MusicLeCLI/bridge"
 	"MusicLeCLI/internal/browser"
@@ -74,6 +77,11 @@ type HomeModel struct {
 
 	smoothBands [17]float64
 	fadeLevel   float64 // 0-1, global fade for spectrum (smooth on play/pause)
+
+	// Now-playing cover cache: decoded once per song, shown in the card's
+	// art area. Empty path + nil image = nothing playing or no artwork.
+	coverPath string
+	coverImg  image.Image
 }
 
 func NewHomeModel() *HomeModel {
@@ -1805,7 +1813,8 @@ func (m *HomeModel) viewPlaylistInfo(bodyH int) string {
 	name := nameStyle.Render("  " + plName)
 	bio := ui.DimStyle.Render("  " + plBio)
 
-	// Art section (centered, always reserves space)
+	// Art section (centered, always reserves space): shows the cover of
+	// the currently playing song, decoded from its embedded artwork.
 	var artStr string
 	baseH := 12
 	targetH := bodyH - 3
@@ -1816,8 +1825,8 @@ func (m *HomeModel) viewPlaylistInfo(bodyH int) string {
 		if avail < artRows {
 			artRows = avail
 		}
-		if displayPl.ArtPath != "" {
-			artStr = renderPlaylistArt(displayPl, 36, artRows)
+		if img := m.nowPlayingCover(); img != nil {
+			artStr = renderCoverArt(img, 36, artRows)
 		}
 	}
 
@@ -1936,17 +1945,40 @@ func padCenter(s string, w int) string {
 	return strings.Repeat(" ", l) + s
 }
 
-func renderPlaylistArt(pl *state.Playlist, cols, rows int) string {
-	if pl == nil || pl.ArtPath == "" {
-		return ""
+// nowPlayingCover returns the decoded cover art of the currently playing
+// song, read from its embedded picture and cached per file path. It returns
+// nil when nothing plays or the file carries no artwork.
+func (m *HomeModel) nowPlayingCover() image.Image {
+	song := state.Current.Player.CurrentSong
+	if song == nil || song.FilePath == "" {
+		m.coverPath = ""
+		m.coverImg = nil
+		return nil
 	}
-	f, err := os.Open(pl.ArtPath)
+	if song.FilePath == m.coverPath {
+		return m.coverImg
+	}
+	m.coverPath = song.FilePath
+	m.coverImg = nil
+	f, err := os.Open(song.FilePath)
 	if err != nil {
-		return ""
+		return nil
 	}
 	defer f.Close()
-	img, _, err := image.Decode(f)
+	meta, err := tag.ReadFrom(f)
+	if err != nil || meta.Picture() == nil {
+		return nil
+	}
+	img, _, err := image.Decode(bytes.NewReader(meta.Picture().Data))
 	if err != nil {
+		return nil
+	}
+	m.coverImg = img
+	return img
+}
+
+func renderCoverArt(img image.Image, cols, rows int) string {
+	if img == nil {
 		return ""
 	}
 	// Inner area (excluding border)
