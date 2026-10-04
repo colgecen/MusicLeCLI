@@ -1,8 +1,14 @@
-# MusicLe CLI
+<p align="center">
+  <img src="assets/musicle-logo.png" alt="MusicLe CLI logo" width="72">
+</p>
 
-A Spotify-inspired music player and personal library manager that runs in your terminal (Go + Bubble Tea).
+<h1 align="center">MusicLe CLI</h1>
 
-![MusicLe CLI demo](assets/musicle-demo.gif)
+<p align="center">A Spotify-inspired music player and personal library manager that runs in your terminal (Go + Bubble Tea).</p>
+
+<p align="center">
+  <img src="assets/musicle-demo.gif" alt="MusicLe CLI demo" width="700">
+</p>
 
 ## Features
 
@@ -49,7 +55,9 @@ Configuration lives in `~/.config/musicle/config.json`, the music archive under 
 
 ## Screenshots
 
-![MusicLe CLI main screen](assets/musicle-app.png)
+<p align="center">
+  <img src="assets/musicle-app.png" alt="MusicLe CLI main screen">
+</p>
 
 ## License
 
