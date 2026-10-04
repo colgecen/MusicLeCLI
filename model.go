@@ -41,6 +41,14 @@ type PlaySongMsg struct {
 	FilePath string
 }
 
+// deleteSongResultMsg reports the outcome of an async song deletion back to
+// the home model, which then refreshes the library and logs the result.
+type deleteSongResultMsg struct {
+	title    string
+	filePath string
+	errMsg   string
+}
+
 type PlayerCmdMsg struct {
 	Action string
 	Value  float64
@@ -206,6 +214,13 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, tea.Quit
+		case m.view == ViewHome && m.home != nil && m.home.inputCaptured():
+			// An overlay on the home view (delete/edit/rename prompt, expanded
+			// playlist list) owns every key: nothing global may steal the
+			// arrows/Enter/Esc it is waiting for.
+			newHome, cmd := m.home.Update(msg)
+			m.home = newHome.(*HomeModel)
+			return m, cmd
 		case msg.Type == tea.KeyF1:
 			if m.playerBarFocused {
 				m.playerBarFocused = false

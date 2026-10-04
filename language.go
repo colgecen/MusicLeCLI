@@ -1692,6 +1692,19 @@ var allTranslations = map[string]map[state.Language]string{
 		state.LangItalian:    " CONFERMA ELIMINAZIONE ",
 		state.LangRussian:    " ПОДТВЕРДИТЬ УДАЛЕНИЕ ",
 	},
+	"home.del_hint": {
+		state.LangEnglish:    "←/→ select · Enter ok · Esc cancel",
+		state.LangTurkish:    "←/→ seçim · Enter onay · Esc iptal",
+		state.LangSpanish:    "←/→ elegir · Enter ok · Esc salir",
+		state.LangGerman:     "←/→ wählen · Enter ok · Esc zurück",
+		state.LangFrench:     "←/→ choisir · Enter ok · Esc annuler",
+		state.LangArabic:     "←/→ اختيار · Enter تأكيد · Esc إلغاء",
+		state.LangPortuguese: "←/→ escolher · Enter ok · Esc sair",
+		state.LangChinese:    "←/→ 选择 · Enter 确认 · Esc 取消",
+		state.LangJapanese:   "←/→ 選択 · Enter 決定 · Esc 取消",
+		state.LangItalian:    "←/→ scegli · Enter ok · Esc annulla",
+		state.LangRussian:    "←/→ выбор · Enter ok · Esc отмена",
+	},
 
 	// ── Downloads: prompts, buttons, dialogs ──────────────────────
 	"dl.prompt_music": {

@@ -274,23 +274,47 @@ func (m *PlaylistModel) addNewPlaylist() (tea.Model, tea.Cmd) {
 	}
 	folder := strings.ToLower(strings.ReplaceAll(name, " ", "_"))
 	bio := strings.TrimSpace(m.plBioInput.Value())
+	// Remember which playlist was active: creating a new one must not steal
+	// the selection shown on the home screen.
+	prevFolder := ""
+	if state.Current.CurrentPlaylist != nil {
+		prevFolder = state.Current.CurrentPlaylist.FolderName
+	}
 	if err := state.Current.CreatePlaylistStructure(cp.FolderName, folder, name, bio, ""); err != nil {
 		m.playlistStatus = ui.ErrorStyle.Render("  x Error: " + err.Error())
 		return m, nil
 	}
 	_ = state.Current.ScanProfiles()
 	for i, p := range state.Current.Profiles {
-		if p.FolderName == cp.FolderName {
-			state.Current.CurrentProfile = &state.Current.Profiles[i]
-			for j, pl := range p.Playlists {
-				if pl.FolderName == folder {
-					state.Current.CurrentPlaylist = &p.Playlists[j]
-					m.playlistFocusIdx = j
-					break
-				}
+		if p.FolderName != cp.FolderName {
+			continue
+		}
+		state.Current.CurrentProfile = &state.Current.Profiles[i]
+		state.Current.CurrentPlaylist = nil
+		for j, pl := range p.Playlists {
+			if pl.FolderName == prevFolder {
+				state.Current.CurrentPlaylist = &p.Playlists[j]
+				break
 			}
+		}
+		newIdx := -1
+		for j, pl := range p.Playlists {
+			if pl.FolderName == folder {
+				newIdx = j
+				break
+			}
+		}
+		if newIdx < 0 {
 			break
 		}
+		// First playlist of the profile: there was no selection to keep.
+		if state.Current.CurrentPlaylist == nil {
+			state.Current.CurrentPlaylist = &p.Playlists[newIdx]
+		}
+		// The cursor in this view lands on the playlist just created; the
+		// active playlist on the home screen stays where it was.
+		m.playlistFocusIdx = newIdx
+		break
 	}
 	m.addMode = false
 	m.refreshOptions()

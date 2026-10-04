@@ -176,6 +176,21 @@ func (m *HomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ImportResultMsg:
 		return m, m.handleImportResult(msg)
 
+	case deleteSongResultMsg:
+		if msg.errMsg != "" {
+			m.addLog("error", "Delete failed: "+msg.errMsg)
+			return m, nil
+		}
+		if cur := state.Current.Player.CurrentSong; cur != nil && cur.FilePath == msg.filePath {
+			state.Current.Player.CurrentSong = nil
+			state.Current.Player.IsPlaying = false
+			state.Current.Player.IsPaused = false
+		}
+		m.refreshAllContent()
+		m.clampSongFocus()
+		m.addLog("ok", "Deleted: "+msg.title)
+		return m, nil
+
 	case PlaySongMsg:
 		pl := state.Current.CurrentPlaylist
 		if pl != nil {
@@ -192,7 +207,8 @@ func (m *HomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					} else if m.songFocusIdx >= m.songOffset+rows {
 						m.songOffset = m.songFocusIdx - rows + 1
 					}
-					return m, m.playSong(&pl.Songs[i])
+					// Auto-advance: keep the running shuffle session intact.
+					return m, m.startSong(&pl.Songs[i])
 				}
 			}
 		}
@@ -833,12 +849,34 @@ func (m *HomeModel) openDeleteConfirm() {
 	m.deleteConfirm = true
 }
 
+// inputCaptured reports whether a home overlay owns the keyboard. While one is
+// open the global key handlers (player bar, F1/F2/F3, view switching) must not
+// swallow the keys the overlay is waiting for.
+func (m *HomeModel) inputCaptured() bool {
+	return m.deleteConfirm || m.editModalOpen || m.renameMode || m.playlistExpanded
+}
+
+// clampSongFocus keeps the song selection inside the current list after the
+// list shrinks (song deleted) or changes (playlist switched).
+func (m *HomeModel) clampSongFocus() {
+	n := len(m.songs())
+	if m.songFocusIdx >= n {
+		m.songFocusIdx = n - 1
+	}
+	if m.songOffset > m.songFocusIdx {
+		m.songOffset = m.songFocusIdx
+	}
+	if m.songOffset < 0 {
+		m.songOffset = 0
+	}
+}
+
 func (m *HomeModel) handleDeleteKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.deleteConfirm = false
 		return m, nil
-	case "left", "right", "tab":
+	case "left", "right", "up", "down", "tab", "shift+tab", " ":
 		m.deleteYes = !m.deleteYes
 		return m, nil
 	case "enter":
@@ -869,36 +907,35 @@ func (m *HomeModel) executeDelete() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	listPath := state.Current.SongListPath(profile.FolderName, pl.FolderName)
+	isCurrent := false
+	if cur := state.Current.Player.CurrentSong; cur != nil && cur.FilePath == song.FilePath {
+		isCurrent = true
+	}
 
 	m.deleteConfirm = false
 
+	// The command only talks to disk/audio; the model is updated in Update
+	// when deleteSongResultMsg comes back, so the UI repaints with the new
+	// library instead of waiting for the next poll tick.
 	return m, func() tea.Msg {
+		if isCurrent {
+			_, _ = bridge.PlayerCall(bridge.Action{Action: "stop"})
+		}
 		result, err := bridge.RunScript(bridge.Action{
 			Action: "remove_song",
 			File:   listPath,
 			Path:   song.Filename,
 		})
-		if err == nil && result.Status == "ok" {
-			// If the deleted song was playing, stop playback.
-			if cur := state.Current.Player.CurrentSong; cur != nil && cur.FilePath == song.FilePath {
-				go bridge.PlayerCall(bridge.Action{Action: "stop"})
-				state.Current.Player.CurrentSong = nil
-				state.Current.Player.IsPlaying = false
-				state.Current.Player.IsPaused = false
-			}
-			_ = state.Current.ScanProfiles()
-			m.refreshAllContent()
-			m.addLog("ok", "Deleted: "+song.Title)
-		} else {
-			errMsg := ""
-			if err != nil {
-				errMsg = err.Error()
-			} else if result != nil {
-				errMsg = result.Error
-			}
-			m.addLog("error", "Delete failed: "+errMsg)
+		if err == nil && result != nil && result.Status == "ok" {
+			return deleteSongResultMsg{title: song.Title, filePath: song.FilePath}
 		}
-		return nil
+		errMsg := ""
+		if err != nil {
+			errMsg = err.Error()
+		} else if result != nil {
+			errMsg = result.Error
+		}
+		return deleteSongResultMsg{title: song.Title, filePath: song.FilePath, errMsg: errMsg}
 	}
 }
 
@@ -928,7 +965,8 @@ func (m *HomeModel) renderDeleteOverlay(full string) string {
 		noBtn = purpleBtn.Render(noTxt)
 	}
 	btns := lipgloss.JoinHorizontal(lipgloss.Left, yesBtn, "  ", noBtn)
-	content := lipgloss.JoinVertical(lipgloss.Center, "", msg, "", btns, "")
+	hint := ui.DimStyle.Render(Tr("home.del_hint"))
+	content := lipgloss.JoinVertical(lipgloss.Center, "", msg, "", btns, "", hint, "")
 	content = ui.BorderStyle.Width(40).Render(ui.WhiteStyle.Bold(true).Render(Tr("home.del_title")) + "\n" + content)
 	return m.placeOverlay(full, content)
 }
@@ -1010,14 +1048,23 @@ type PlayResultMsg struct {
 	Error error
 }
 
+// playSong starts a song picked by the user; it also ends a running shuffle
+// session so the playlist continues linearly from that song.
 func (m *HomeModel) playSong(song *state.Song) tea.Cmd {
+	m.shuffleOrder = nil
+	m.shufflePos = 0
+	state.Current.Player.IsShuffled = false
+	return m.startSong(song)
+}
+
+// startSong hands a song to the audio backend without touching the shuffle
+// session — auto-advance uses it so the shuffled order survives playback.
+func (m *HomeModel) startSong(song *state.Song) tea.Cmd {
 	if song == nil {
 		return nil
 	}
 	m.songEndedAt = time.Time{}
 	m.manualStop = true
-	m.shuffleOrder = nil
-	m.shufflePos = 0
 	// Stop any current playback before starting a new one
 	if state.Current.Player.IsPlaying {
 		bridge.PlayerCall(bridge.Action{Action: "stop"})
@@ -1058,9 +1105,6 @@ func (m *HomeModel) playAllSongs() tea.Cmd {
 	if pl == nil || len(pl.Songs) == 0 {
 		return nil
 	}
-	state.Current.Player.IsShuffled = false
-	m.shuffleOrder = nil
-	m.shufflePos = 0
 	return m.playSong(&pl.Songs[0])
 }
 
@@ -1069,39 +1113,42 @@ func (m *HomeModel) playShuffledSongs() tea.Cmd {
 	if pl == nil || len(pl.Songs) == 0 {
 		return nil
 	}
-	n := len(pl.Songs)
-	m.shuffleOrder = rand.Perm(n)
+	order := rand.Perm(len(pl.Songs))
+	m.shuffleOrder = order
 	m.shufflePos = 0
 	state.Current.Player.IsShuffled = true
-	return m.playSong(&pl.Songs[m.shuffleOrder[0]])
+	return m.startSong(&pl.Songs[order[0]])
 }
 
-func (m *HomeModel) NextSong() tea.Cmd {
-	return func() tea.Msg {
-		pl := state.Current.CurrentPlaylist
-		if pl == nil || len(pl.Songs) == 0 {
-			return nil
-		}
-		cur := state.Current.Player.CurrentSong
-		if cur == nil {
-			return PlaySongMsg{FilePath: pl.Songs[0].FilePath}
-		}
-		if state.Current.Player.IsShuffled {
-			if m.shufflePos >= len(m.shuffleOrder)-1 {
-				state.Current.Player.IsShuffled = false
-				return nil
-			}
-			m.shufflePos++
-			return PlaySongMsg{FilePath: pl.Songs[m.shuffleOrder[m.shufflePos]].FilePath}
-		}
-		n := len(pl.Songs)
-		for i, s := range pl.Songs {
-			if s.Filename == cur.Filename {
-				return PlaySongMsg{FilePath: pl.Songs[(i+1)%n].FilePath}
-			}
-		}
-		return PlaySongMsg{FilePath: pl.Songs[0].FilePath}
+// nextSongTarget returns the track that should follow the current one.
+// While a shuffle session runs it walks the shuffled order; when that order is
+// exhausted (or the playlist changed under it) playback falls back to the
+// linear order. The shuffle state is advanced here, synchronously with the
+// model, so it can never be observed half-updated.
+func (m *HomeModel) nextSongTarget() *state.Song {
+	pl := state.Current.CurrentPlaylist
+	if pl == nil || len(pl.Songs) == 0 {
+		return nil
 	}
+	if state.Current.Player.IsShuffled && len(m.shuffleOrder) == len(pl.Songs) {
+		if m.shufflePos < len(m.shuffleOrder)-1 {
+			m.shufflePos++
+			return &pl.Songs[m.shuffleOrder[m.shufflePos]]
+		}
+		state.Current.Player.IsShuffled = false
+		m.shuffleOrder = nil
+		m.shufflePos = 0
+	}
+	cur := state.Current.Player.CurrentSong
+	if cur == nil {
+		return &pl.Songs[0]
+	}
+	for i, s := range pl.Songs {
+		if s.Filename == cur.Filename {
+			return &pl.Songs[(i+1)%len(pl.Songs)]
+		}
+	}
+	return &pl.Songs[0]
 }
 
 func (m *HomeModel) OnImportResult(msg ImportResultMsg) tea.Cmd {
@@ -1216,11 +1263,18 @@ func (m *HomeModel) checkAutoAdvance() tea.Cmd {
 	if m.songEndedAt.IsZero() {
 		return nil
 	}
-	if time.Since(m.songEndedAt) >= 2*time.Second {
-		m.songEndedAt = time.Time{}
-		return m.NextSong()
+	if time.Since(m.songEndedAt) < 2*time.Second {
+		return nil
 	}
-	return nil
+	m.songEndedAt = time.Time{}
+	next := m.nextSongTarget()
+	if next == nil {
+		return nil
+	}
+	path := next.FilePath
+	return func() tea.Msg {
+		return PlaySongMsg{FilePath: path}
+	}
 }
 
 func (m *HomeModel) selectPlaylist(idx int) {
