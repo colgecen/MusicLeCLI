@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/musicle-logo.png" alt="MusicLe CLI logo" width="72">
-</p>
-
 <h1 align="center">MusicLe CLI</h1>
 
 <p align="center">A Spotify-inspired music player and personal library manager that runs in your terminal (Go + Bubble Tea).</p>
