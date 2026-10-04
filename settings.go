@@ -49,8 +49,8 @@ type SettingsModel struct {
 
 	// Custom-theme hex editor state (last row of the Theme tab).
 	editingCustom bool
-	customHex      textinput.Model
-	customErr      string
+	customHex     textinput.Model
+	customErr     string
 
 	// activeTab is the index into settingsTabs that is currently shown.
 	activeTab int
@@ -271,10 +271,9 @@ func (m *SettingsModel) moveSelection(dir int) {
 		langs := state.AllLanguages()
 		m.langIdx = (m.langIdx + dir + len(langs)) % len(langs)
 	case "tab.extras":
-		names := ui.SpectrumPaletteNames()
-		if len(names) > 0 {
-			m.spectrumIdx = (m.spectrumIdx + dir + len(names)) % len(names)
-		}
+		// One extra row below the palette list: the auto-cycle toggle.
+		n := len(ui.SpectrumPaletteNames()) + 1
+		m.spectrumIdx = (m.spectrumIdx + dir + n) % n
 	}
 }
 
@@ -345,6 +344,22 @@ func (m *SettingsModel) applyActiveTab() tea.Cmd {
 		}
 	case "tab.extras":
 		names := ui.SpectrumPaletteNames()
+		if m.spectrumIdx >= len(names) {
+			// Auto-cycle row: Off -> 500ms -> 333ms -> Off.
+			switch state.Current.SpectrumAutoCycleMs {
+			case 0:
+				state.Current.SpectrumAutoCycleMs = 500
+			case 500:
+				state.Current.SpectrumAutoCycleMs = 333
+			default:
+				state.Current.SpectrumAutoCycleMs = 0
+				// Off: put the selected palette back to its original order.
+				ui.SetSpectrumPalette(state.Current.SpectrumPalette)
+			}
+			_ = state.Current.SaveConfig()
+			m.spectrumIdx = len(names)
+			return nil
+		}
 		if m.spectrumIdx >= 0 && m.spectrumIdx < len(names) {
 			state.Current.SpectrumPalette = names[m.spectrumIdx]
 			_ = state.Current.SaveConfig()
@@ -503,7 +518,7 @@ func (m *SettingsModel) renderRightPanel(width int, height int) string {
 	case "tab.policies":
 		content = m.renderScrollableTab(width, height, Tr("tab.policies"), policiesContent())
 	case "tab.extras":
-		content = m.renderExtrasTab(width)
+		content = m.renderExtrasTab(width, height)
 	case "tab.about":
 		content = m.renderScrollableTab(width, height, Tr("tab.about"), aboutContent())
 	default:
@@ -581,13 +596,25 @@ func (m *SettingsModel) renderThemeTab(width int) string {
 	return strings.Join(lines, "\n")
 }
 
-func (m *SettingsModel) renderExtrasTab(width int) string {
+// renderExtrasTab shows the spectrum palette picker, the auto-cycle speed row
+// and — under them — the shortcut/usage reference from extrasContent. The
+// reference block scrolls with PgUp/PgDn (m.scroll) and is clipped to the panel.
+func (m *SettingsModel) renderExtrasTab(width, height int) string {
 	names := ui.SpectrumPaletteNames()
 	previewW := width - 16
 	if previewW < 8 {
 		previewW = 8
 	}
-	lines := []string{
+	innerW := width - 6
+	if innerW < 24 {
+		innerW = 24
+	}
+	innerH := height - 4
+	if innerH < 8 {
+		innerH = 8
+	}
+
+	head := []string{
 		ui.SectionTitleStyle.Render(" " + Tr("tab.extras") + " "),
 		"",
 	}
@@ -597,10 +624,50 @@ func (m *SettingsModel) renderExtrasTab(width int) string {
 		if m.rightFocused && i == m.spectrumIdx {
 			line = ui.AccentStyle.Bold(true).Render("> ") + preview + "  " + ui.WhiteStyle.Bold(true).Render(n)
 		}
-		lines = append(lines, line)
+		head = append(head, line)
 	}
-	lines = append(lines, "")
-	lines = append(lines, ui.DimStyle.Render("  "+Tr("settings.select_hint")))
+
+	// Auto-cycle speed row, directly below the palette list.
+	cycle := Tr("extras.cycle_off")
+	switch state.Current.SpectrumAutoCycleMs {
+	case 500:
+		cycle = Tr("extras.cycle_500")
+	case 333:
+		cycle = Tr("extras.cycle_333")
+	}
+	cycleLabel := Tr("extras.auto_cycle") + ": " + cycle
+	cycleRow := "  " + cycleLabel
+	if m.rightFocused && m.spectrumIdx >= len(names) {
+		cycleRow = ui.AccentStyle.Bold(true).Render("> ") +
+			ui.WhiteStyle.Bold(true).Render(cycleLabel)
+	}
+	head = append(head, "", cycleRow, ui.DimStyle.Render("  "+Tr("extras.cycle_hint")),
+		"", ui.DimStyle.Render("  "+Tr("settings.select_hint")))
+	head = append(head, "")
+
+	usageLines := wrapText(extrasContent(), innerW)
+	avail := innerH - len(head) - 1
+	if avail < 4 {
+		avail = 4
+	}
+	if m.scroll > len(usageLines)-avail {
+		m.scroll = len(usageLines) - avail
+	}
+	if m.scroll < 0 {
+		m.scroll = 0
+	}
+	end := m.scroll + avail
+	if end > len(usageLines) {
+		end = len(usageLines)
+	}
+	lines := append([]string{}, head...)
+	lines = append(lines, usageLines[m.scroll:end]...)
+	if len(usageLines) > avail {
+		lines = append(lines, ui.DimStyle.Render("  "+Tr("extras.scroll_hint")))
+	}
+	for len(lines) < innerH {
+		lines = append(lines, "")
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -695,7 +762,21 @@ func (m *SettingsModel) volumeBar(pct, w int) string {
 // can read Policies/About without leaving the Settings view.
 func (m *SettingsModel) handleScrollKey(s string) (bool, tea.Cmd) {
 	id := settingsTabs[m.activeTab].id
-	if id != "tab.policies" && id != "tab.about" {
+	switch id {
+	case "tab.policies", "tab.about":
+		// Full-page text: ↑/↓ scroll line by line.
+	case "tab.extras":
+		// ↑/↓ belong to the palette list here, so only Page keys scroll.
+		switch s {
+		case "pgup":
+			m.scrollBy(-10)
+		case "pgdown":
+			m.scrollBy(10)
+		default:
+			return false, nil
+		}
+		return true, nil
+	default:
 		return false, nil
 	}
 	switch s {

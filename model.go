@@ -137,6 +137,7 @@ func (m *MainModel) Init() tea.Cmd {
 		m.settings.Init(),
 		m.downloads.Init(),
 		m.pollTicker(),
+		m.spectrumTicker(),
 	)
 }
 
@@ -147,6 +148,40 @@ func (m *MainModel) pollTicker() tea.Cmd {
 }
 
 type PollTickMsg time.Time
+
+// SpectrumTickMsg fires on the configured spectrum auto-cycle interval.
+type SpectrumTickMsg time.Time
+
+// spectrumTicker schedules the next spectrum color step. The delay is read from
+// the live setting on every tick, so changing the speed (or turning the cycle
+// off) takes effect without starting a second ticker; while the cycle is off
+// the ticker idles at 1s and applies nothing.
+func (m *MainModel) spectrumTicker() tea.Cmd {
+	ms := state.Current.SpectrumAutoCycleMs
+	if ms <= 0 {
+		ms = 1000
+	}
+	return tea.Tick(time.Duration(ms)*time.Millisecond, func(t time.Time) tea.Msg {
+		return SpectrumTickMsg(t)
+	})
+}
+
+// rotateSpectrum advances the spectrum color cycle by one step and reschedules
+// itself. The selected palette stays selected: only its own band colors shift,
+// and only the spectrum bars show the change. The delay is re-read on every
+// tick, so changing the speed (or turning the cycle off) never starts a second
+// ticker; while the cycle is off the ticker idles at 1s and applies nothing.
+func (m *MainModel) rotateSpectrum() tea.Cmd {
+	if state.Current.SpectrumAutoCycleMs > 0 {
+		ui.RotateSpectrum()
+	} else if ui.SpectrumRotated() {
+		// Cycle turned off: reload the selected palette so the spectrum goes
+		// back to the exact colors it had before the rotation started.
+		ui.SetSpectrumPalette(state.Current.SpectrumPalette)
+	}
+	return m.spectrumTicker()
+}
+
 type PlayerStatusResult struct {
 	Result *bridge.Result
 	Error  error
@@ -396,6 +431,9 @@ func (m *MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.downloads.downloadStatus = status
 			m.downloads.TrackProgress(active, pct, status)
 		}
+
+	case SpectrumTickMsg:
+		cmds = append(cmds, m.rotateSpectrum())
 
 	case StartDownloadMsg:
 		cmds = append(cmds, m.handleDownload(msg))

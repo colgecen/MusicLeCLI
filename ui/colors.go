@@ -438,7 +438,9 @@ var SpectrumPalettes = map[string][]string{
 }
 
 // SetSpectrumPalette swaps the active spectrum colors to the named palette,
-// rebuilding the style cache. Unknown names fall back to RGB.
+// rebuilding the style cache. Unknown names fall back to RGB. It also marks
+// the spectrum as un-rotated, so a disabled color cycle can be undone by
+// simply loading the selected palette again.
 func SetSpectrumPalette(name string) {
 	src, ok := SpectrumPalettes[name]
 	if !ok {
@@ -448,6 +450,36 @@ func SetSpectrumPalette(name string) {
 	for i, h := range src {
 		spectrumColors[i] = lipgloss.Color(h)
 	}
+	spectrumShifted = false
+	rebuildSpectrumStyleCache()
+}
+
+// RotateSpectrum shifts the active palette's band colors by one step, so the
+// spectrum loops through the colors of the palette that is already selected
+// instead of jumping to a different palette. After len(spectrumColors) calls
+// the original order is back. Only the spectrum bars are affected; palette
+// previews and the rest of the UI keep their fixed colors.
+func RotateSpectrum() {
+	n := len(spectrumColors)
+	if n == 0 {
+		return
+	}
+	last := spectrumColors[n-1]
+	copy(spectrumColors[1:], spectrumColors[:n-1])
+	spectrumColors[0] = last
+	spectrumShifted = true
+	rebuildSpectrumStyleCache()
+}
+
+// SpectrumRotated reports whether RotateSpectrum has been applied since the
+// last SetSpectrumPalette, i.e. whether reloading the selected palette would
+// change anything.
+func SpectrumRotated() bool {
+	return spectrumShifted
+}
+
+// rebuildSpectrumStyleCache recreates the per-band styles from spectrumColors.
+func rebuildSpectrumStyleCache() {
 	spectrumStyleCache = make([]lipgloss.Style, len(spectrumColors))
 	for i, c := range spectrumColors {
 		spectrumStyleCache[i] = lipgloss.NewStyle().Foreground(c)
@@ -487,6 +519,10 @@ func PalettePreview(name string, n int) string {
 var waveShades = []string{" ", "░", "▒", "▓", "█"}
 
 var spectrumStyleCache []lipgloss.Style
+
+// spectrumShifted is true while the active palette's colors are rotated away
+// from their original order (see RotateSpectrum).
+var spectrumShifted bool
 
 func init() {
 	spectrumStyleCache = make([]lipgloss.Style, 17)

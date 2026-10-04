@@ -152,6 +152,9 @@ type AppState struct {
 
 	// Spectrum visualizer color palette name (see ui.SpectrumPalettes)
 	SpectrumPalette string
+	// SpectrumAutoCycleMs rotates the spectrum palette on this interval in
+	// milliseconds (0 = off, 500 or 333 are the offered speeds).
+	SpectrumAutoCycleMs int
 }
 
 // Current is the global app state
@@ -172,6 +175,7 @@ type savedConfig struct {
 	SoundOutputDevice string   `json:"sound_output_device"`
 	SoundVolumeLimit  int      `json:"sound_volume_limit"`
 	SpectrumPalette   string   `json:"spectrum_palette"`
+	SpectrumCycleMs   int      `json:"spectrum_cycle_ms"`
 }
 
 func (a *AppState) configPath() string {
@@ -203,6 +207,13 @@ func (a *AppState) LoadConfig() error {
 	if a.SpectrumPalette == "" {
 		a.SpectrumPalette = "RGB"
 	}
+	// Only the offered speeds are accepted; anything else turns the cycle off.
+	switch cfg.SpectrumCycleMs {
+	case 500, 333:
+		a.SpectrumAutoCycleMs = cfg.SpectrumCycleMs
+	default:
+		a.SpectrumAutoCycleMs = 0
+	}
 	return nil
 }
 
@@ -218,6 +229,7 @@ func (a *AppState) SaveConfig() error {
 		SoundOutputDevice: a.SoundOutputDevice,
 		SoundVolumeLimit:  a.SoundVolumeLimit,
 		SpectrumPalette:   a.SpectrumPalette,
+		SpectrumCycleMs:   a.SpectrumAutoCycleMs,
 	}
 	if a.CurrentProfile != nil {
 		cfg.LastUser = a.CurrentProfile.FolderName
