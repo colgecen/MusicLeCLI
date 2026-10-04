@@ -19,7 +19,7 @@
 #
 set -euo pipefail
 
-VERSION="${VERSION:-1.4.0}"
+VERSION="${VERSION:-1.5.0}"
 # ROOT = bu scriptin bulundugu repo koku. $0 symlink (örn. ~/.local/bin)
 # uzerinden cagrilabilir, o yuzden tum symlink'ler cozuler.
 resolve_root() {
@@ -64,7 +64,7 @@ usage() {
   echo "Ornekler:"
   echo "  ./musiclecli linux appimage"
   echo "  ./musiclecli windows exe-zip"
-  echo "  VERSION=1.4.0 ./musiclecli linux targz"
+  echo "  VERSION=1.5.0 ./musiclecli linux targz"
 }
 
 list_targets() {
@@ -379,14 +379,14 @@ case "${1:-}" in
       exit 1
     fi
     OS="$1"; FMT="$2"
-    # 3. argüman olarak version verilebilir: ./musiclecli linux appimage 1.4.0
+    # 3. argüman olarak version verilebilir: ./musiclecli linux appimage 1.5.0
     if [ $# -ge 3 ]; then
       VERSION="$3"
     fi
     build_target "$OS" "$FMT"
     ;;
   *)
-    # VERSION=... ./musiclecli 1.4.0  seklinde sürümle çağrı ya da hatalı kullanım
+    # VERSION=... ./musiclecli 1.5.0  seklinde sürümle çağrı ya da hatalı kullanım
     echo "Bilinmeyen komut: $1"
     echo
     usage
